@@ -2,7 +2,7 @@ use std::io;
 use advent_code_lib::{advent_main, all_lines};
 
 fn main() -> io::Result<()> {
-    advent_main(&["part1|part2"], &[], |args| {
+    advent_main(&[], &[], |args| {
         let mut elves = vec![];
         let mut elf = 0;
         
@@ -17,9 +17,8 @@ fn main() -> io::Result<()> {
         }
         elves.push(elf);
 
-        let result = if args[2].as_str() == "part1" {part1(&elves)} else {part2(&elves)};
-
-        println!("{result}");
+        println!("part 1: {}", part1(&elves));
+        println!("part 2: {}", part2(&elves));
         Ok(())
     })
 }
