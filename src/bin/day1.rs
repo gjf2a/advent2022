@@ -17,20 +17,10 @@ fn main() -> io::Result<()> {
         }
         elves.push(elf);
 
-        println!("part 1: {}", part1(&elves));
+        println!("part 1: {}", elves.iter().max().unwrap());
         println!("part 2: {}", part2(&elves));
         Ok(())
     })
-}
-
-fn part1(elves: &Vec<i64>) -> i64 {
-    let mut highest = 0;
-    for i in 1..elves.len() {
-        if elves[i] > highest {
-            highest = elves[i];
-        }
-    }
-    highest
 }
 
 fn part2(elves: &Vec<i64>) -> i64 {
