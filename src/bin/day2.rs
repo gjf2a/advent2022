@@ -1,0 +1,80 @@
+use std::io;
+use advent_code_lib::{advent_main, all_lines};
+use enum_iterator::*;
+
+fn main() -> io::Result<()> {
+    advent_main(&[], &[], |args| { 
+        let mut part1_total = 0;
+        let mut part2_total = 0;
+        for line in all_lines(args[1].as_str())? {
+            let parts = line.split_whitespace().collect::<Vec<_>>();
+            let opponent = Rps::from1(parts[0]);
+            let me = Rps::from1(parts[1]);
+            part1_total += me.match_score(opponent);
+
+            let strategy = opponent.strategy2(parts[1]);
+            part2_total += strategy.match_score(opponent);
+        }
+        println!("Part 1: {part1_total}");
+        println!("Part 2: {part2_total}");
+        Ok(())
+    })
+}
+
+const WIN_SCORE: i64 = 6;
+const LOSE_SCORE: i64 = 0;
+const DRAW_SCORE: i64 = 3;
+
+#[derive(Copy, Clone, PartialEq, Eq, Sequence, PartialOrd, Ord)]
+enum Rps {
+    Rock,
+    Paper,
+    Scissors,
+}
+
+impl Rps {
+    fn from1(s: &str) -> Self {
+        match s {
+            "A" | "X" => Self::Rock,
+            "B" | "Y" => Self::Paper,
+            "C" | "Z" => Self::Scissors,
+            _ => panic!("Sorry!")
+        }
+    }
+
+    fn move2match(&self, score: i64) -> Self {
+        all::<Self>()
+        .find(|me| me.game_score(*self) == score)
+        .unwrap()
+    }
+
+    fn strategy2(&self, strategy: &str) -> Self {
+        match strategy {
+            "X" => self.move2match(LOSE_SCORE),
+            "Y" => self.move2match(DRAW_SCORE),
+            "Z" => self.move2match(WIN_SCORE),
+            _ => panic!("sorry!")
+        }
+    }
+
+    fn shape_score(&self) -> i64 {
+        match self {
+            Rps::Rock => 1,
+            Rps::Paper => 2,
+            Rps::Scissors => 3,
+        }
+    }
+
+    fn game_score(&self, opponent: Self) -> i64 {
+        match (*self, opponent) {
+            (Rps::Rock, Rps::Paper) | (Rps::Scissors, Rps::Rock) | (Rps::Paper, Rps::Scissors) => LOSE_SCORE,
+            (Rps::Paper, Rps::Rock) | (Rps::Rock, Rps::Scissors) | (Rps::Scissors, Rps::Paper) => WIN_SCORE,
+            _ => DRAW_SCORE,
+        }
+    }
+
+    fn match_score(&self, opponent: Self) -> i64 {
+        self.game_score(opponent) + self.shape_score()
+    }
+}
+

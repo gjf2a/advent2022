@@ -7,6 +7,7 @@ name = "advent2022"
 version = "0.1.0"
 dependencies = [
  "advent_code_lib",
+ "enum-iterator 1.2.0",
 ]
 
 [[package]]
@@ -17,7 +18,7 @@ dependencies = [
  "bare_metal_modulo",
  "common_macros",
  "derive-getters",
- "enum-iterator",
+ "enum-iterator 0.6.0",
  "hash_histogram",
  "indexmap",
  "maplit",
@@ -64,7 +65,16 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c79a6321a1197d7730510c7e3f6cb80432dfefecb32426de8cea0aa19b4bb8d7"
 dependencies = [
- "enum-iterator-derive",
+ "enum-iterator-derive 0.6.0",
+]
+
+[[package]]
+name = "enum-iterator"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91a4ec26efacf4aeff80887a175a419493cb6f8b5480d26387eb0bd038976187"
+dependencies = [
+ "enum-iterator-derive 1.1.0",
 ]
 
 [[package]]
@@ -72,6 +82,17 @@ name = "enum-iterator-derive"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e94aa31f7c0dc764f57896dc615ddd76fc13b0d5dca7eb6cc5e018a5a09ec06"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "enum-iterator-derive"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "828de45d0ca18782232dfb8f3ea9cc428e8ced380eb26a520baaacfc70de39ce"
 dependencies = [
  "proc-macro2",
  "quote",
