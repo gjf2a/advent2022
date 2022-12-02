@@ -9,11 +9,11 @@ fn main() -> io::Result<()> {
         for line in all_lines(args[1].as_str())? {
             let parts = line.split_whitespace().collect::<Vec<_>>();
             let opponent = Rps::from1(parts[0]);
-            let me = Rps::from1(parts[1]);
-            part1_total += me.match_score(opponent);
+            let me1 = Rps::from1(parts[1]);
+            part1_total += me1.match_score(opponent);
 
-            let strategy = opponent.strategy2(parts[1]);
-            part2_total += strategy.match_score(opponent);
+            let me2 = opponent.strategy2(parts[1]);
+            part2_total += me2.match_score(opponent);
         }
         println!("Part 1: {part1_total}");
         println!("Part 2: {part2_total}");
@@ -65,11 +65,20 @@ impl Rps {
         }
     }
 
-    fn game_score(&self, opponent: Self) -> i64 {
+    fn defeats(&self, opponent: Self) -> bool {
         match (*self, opponent) {
-            (Rps::Rock, Rps::Paper) | (Rps::Scissors, Rps::Rock) | (Rps::Paper, Rps::Scissors) => LOSE_SCORE,
-            (Rps::Paper, Rps::Rock) | (Rps::Rock, Rps::Scissors) | (Rps::Scissors, Rps::Paper) => WIN_SCORE,
-            _ => DRAW_SCORE,
+            (Rps::Paper, Rps::Rock) | (Rps::Rock, Rps::Scissors) | (Rps::Scissors, Rps::Paper) => true,
+            _ => false
+        }
+    }
+
+    fn game_score(&self, opponent: Self) -> i64 {
+        if self.defeats(opponent) {
+            WIN_SCORE
+        } else if opponent.defeats(*self) {
+            LOSE_SCORE
+        } else {
+            DRAW_SCORE
         }
     }
 
