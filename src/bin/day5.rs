@@ -21,12 +21,12 @@ pub struct CratePuzzle {
 
 #[derive(Clone, Debug)]
 pub struct CrateState {
-    stacks: Vec<Vec<char>>
+    stacks: Vec<VecDeque<char>>
 }
 
 impl CrateState {
     pub fn tops(&self) -> String {
-        self.stacks.iter().map(|s| s.last().copied().unwrap()).collect()
+        self.stacks.iter().map(|s| s.back().copied().unwrap()).collect()
     }
 }
 
@@ -42,8 +42,8 @@ impl CrateInstruction {
         let start = self.start - 1;
         let end = self.end - 1;
         for _ in 0..self.quantity {
-            let parcel = puzzle.stacks[start].pop().unwrap();
-            puzzle.stacks[end].push(parcel);
+            let parcel = puzzle.stacks[start].pop_back().unwrap();
+            puzzle.stacks[end].push_back(parcel);
         }
     }
 
@@ -52,11 +52,11 @@ impl CrateInstruction {
         let end = self.end - 1;
         let mut parcels = VecDeque::new();
         for _ in 0..self.quantity {
-            let parcel = puzzle.stacks[start].pop().unwrap();
+            let parcel = puzzle.stacks[start].pop_back().unwrap();
             parcels.push_front(parcel);
         }
         while parcels.len() > 0 {
-            puzzle.stacks[end].push(parcels.pop_front().unwrap());
+            puzzle.stacks[end].push_back(parcels.pop_front().unwrap());
         }
     }
 }
@@ -73,7 +73,7 @@ fn decode_char(c: Option<&char>) -> Option<char> {
 
 impl CratePuzzle {
     pub fn from_file(filename: &str) -> anyhow::Result<Self> {
-        let mut deques = vec![];
+        let mut stacks = vec![];
         let mut state = None;
         let mut script = vec![];
         for line in all_lines(filename)? {
@@ -82,20 +82,20 @@ impl CratePuzzle {
                 let nums = line.split_whitespace().map(|n| n.parse::<usize>().unwrap()).collect::<Vec<_>>();
                 script.push(CrateInstruction {quantity: nums[0], start: nums[1], end: nums[2]});
             } else if line.starts_with(" 1   2   3") {
-                state = Some(CrateState {stacks: deques.iter().map(|d: &VecDeque<char>| d.iter().copied().collect::<Vec<_>>()).collect()});
+                state = Some(CrateState {stacks: stacks.clone()});
             } else if line.trim().len() > 0 {
                 let chars = line.chars().collect::<Vec<_>>();
                 let num_stacks = (chars.len() + 1) / 4;
-                if deques.len() < num_stacks {
-                    for _ in 0..(num_stacks - deques.len()) {
-                        deques.push(VecDeque::new());
+                if stacks.len() < num_stacks {
+                    for _ in 0..(num_stacks - stacks.len()) {
+                        stacks.push(VecDeque::new());
                     } 
                 }
-                (0..deques.len())
+                (0..stacks.len())
                     .map(|i| (i, decode_char(chars.get(1 + i * 4))))
                     .for_each(|(i,c)| {
                         if let Some(c) = c {
-                            deques[i].push_front(c);
+                            stacks[i].push_front(c);
                         }
                     });
             };
