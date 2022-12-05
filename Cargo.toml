@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 advent_code_lib = {git = "https://github.com/gjf2a/advent_code_lib"}
 enum-iterator = "1.2.0"
+anyhow = "1"
