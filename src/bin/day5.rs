@@ -3,9 +3,12 @@ use advent_code_lib::{advent_main, all_lines};
 
 fn main() -> io::Result<()> {
     advent_main(&[], &[], |args| { 
-        let mut puzzle = CratePuzzle::from_file(args[1].as_str()).unwrap();
-        puzzle.run1();
-        println!("Part 1: {}", puzzle.state.tops());
+        let mut puzzle1 = CratePuzzle::from_file(args[1].as_str()).unwrap();
+        let mut puzzle2 = puzzle1.clone();
+        puzzle1.run1();
+        println!("Part 1: {}", puzzle1.state.tops());
+        puzzle2.run2();
+        println!("Part 2: {}", puzzle2.state.tops());
         Ok(())
     })
 }
@@ -41,6 +44,19 @@ impl CrateInstruction {
         for _ in 0..self.quantity {
             let parcel = puzzle.stacks[start].pop().unwrap();
             puzzle.stacks[end].push(parcel);
+        }
+    }
+
+    fn part2(&self, puzzle: &mut CrateState) {
+        let start = self.start - 1;
+        let end = self.end - 1;
+        let mut parcels = VecDeque::new();
+        for _ in 0..self.quantity {
+            let parcel = puzzle.stacks[start].pop().unwrap();
+            parcels.push_front(parcel);
+        }
+        while parcels.len() > 0 {
+            puzzle.stacks[end].push(parcels.pop_front().unwrap());
         }
     }
 }
@@ -90,6 +106,12 @@ impl CratePuzzle {
     pub fn run1(&mut self) {
         for line in self.script.iter() {
             line.part1(&mut self.state);
+        }
+    }
+
+    pub fn run2(&mut self) {
+        for line in self.script.iter() {
+            line.part2(&mut self.state);
         }
     }
 }
