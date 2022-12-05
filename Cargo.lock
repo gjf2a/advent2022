@@ -13,9 +13,10 @@ dependencies = [
 
 [[package]]
 name = "advent_code_lib"
-version = "0.12.16"
-source = "git+https://github.com/gjf2a/advent_code_lib#e9f4ab7de598bd05e40b45aa0593f9b925a36e87"
+version = "0.12.17"
+source = "git+https://github.com/gjf2a/advent_code_lib#5bc8f28f1990d50dc9a93c255f4571e400fba3eb"
 dependencies = [
+ "anyhow",
  "bare_metal_modulo",
  "common_macros",
  "derive-getters",
@@ -42,11 +43,12 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "bare_metal_modulo"
-version = "0.11.3"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "642280d2fc502d5b608feadd660cbe5c6d34e07f7aefbd46755cb5392c74e215"
+checksum = "a0fa2740e98e77129beafdb67b5ddc441c9a8c9d55da9d1d7d9308010544fab0"
 dependencies = [
  "num",
+ "trait-set",
 ]
 
 [[package]]
@@ -256,18 +258,18 @@ checksum = "4501abdff3ae82a1c1b477a17252eb69cee9e66eb915c1abaa4f44d873df9f09"
 
 [[package]]
 name = "serde"
-version = "1.0.148"
+version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e53f64bb4ba0191d6d0676e1b141ca55047d83b74f5607e6d8eb88126c52c2dc"
+checksum = "256b9932320c590e707b94576e3cc1f7c9024d0ee6612dfbcf1cb106cbe8e055"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.148"
+version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a55492425aa53521babf6137309e7d34c20bbfbbfcfe2c7f3a047fd1f6b92c0c"
+checksum = "b4eae9b04cbffdfd550eb462ed33bc6a1b68c935127d008b27444d08380f94e4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -298,9 +300,9 @@ dependencies = [
 
 [[package]]
 name = "trait-set"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "875c4c873cc824e362fa9a9419ffa59807244824275a44ad06fec9684fff08f2"
+checksum = "b79e2e9c9ab44c6d7c20d5976961b47e8f49ac199154daa514b77cd1ab536625"
 dependencies = [
  "proc-macro2",
  "quote",

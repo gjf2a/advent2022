@@ -1,9 +1,9 @@
-use std::{io, collections::VecDeque};
-use advent_code_lib::{advent_main, all_lines};
+use std::{collections::VecDeque};
+use advent_code_lib::{simpler_main, all_lines};
 
-fn main() -> io::Result<()> {
-    advent_main(&[], &[], |args| { 
-        let mut puzzle1 = CratePuzzle::from_file(args[1].as_str()).unwrap();
+fn main() -> anyhow::Result<()> {
+    simpler_main(|filename| { 
+        let mut puzzle1 = CratePuzzle::from_file(filename)?;
         let mut puzzle2 = puzzle1.clone();
         puzzle1.run1();
         println!("Part 1: {}", puzzle1.state.tops());

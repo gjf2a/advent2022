@@ -1,12 +1,11 @@
-use std::io;
-use advent_code_lib::{advent_main, all_lines};
+use advent_code_lib::{simpler_main, all_lines};
 
-fn main() -> io::Result<()> {
-    advent_main(&[], &[], |args| {
+fn main() -> anyhow::Result<()> {
+    simpler_main(|filename| {
         let mut elves = vec![];
         let mut elf = 0;
         
-        for line in all_lines(args[1].as_str())? {
+        for line in all_lines(filename)? {
             let line = line.trim();
             if line.len() == 0 {
                 elves.push(elf);

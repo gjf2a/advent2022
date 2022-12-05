@@ -1,13 +1,12 @@
-use std::io;
-use advent_code_lib::{advent_main, all_lines};
+use advent_code_lib::{simpler_main, all_lines};
 use std::collections::BTreeSet;
 
-fn main() -> io::Result<()> {
-    advent_main(&[], &[], |args| { 
+fn main() -> anyhow::Result<()> {
+    simpler_main(|filename| { 
         let mut total1 = 0;
         let mut total2 = 0;
         let mut trio = vec![];
-        for line in all_lines(args[1].as_str())? {
+        for line in all_lines(filename)? {
             total1 += score(char_intersection_1(line.as_str()));
             trio.push(line);
             if trio.len() == 3 {
