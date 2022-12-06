@@ -23,8 +23,7 @@ fn scanner(line: &str, target_len: usize) -> usize {
         }
         let current = marker.iter().collect::<BTreeSet<_>>();
         if current.len() == target_len {
-            break;
+            return proc_count;
         }
     }
-    proc_count
 }
