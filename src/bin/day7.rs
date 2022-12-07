@@ -39,7 +39,8 @@ impl FileSystem {
                     let size = info.parse::<usize>().unwrap();
                     system.files.insert(name.to_owned(), (current_dir.clone(), size));
                 }
-                system.directories.get_mut(current_dir.as_str()).map(|(_,v)| v.push(name.to_owned()));
+                let dir = system.directories.get_mut(current_dir.as_str()).unwrap();
+                dir.1.push(name.to_owned());
             }
         }
         Ok(system)
@@ -60,9 +61,4 @@ impl FileSystem {
     pub fn part1(&self) -> usize {
         self.directories.keys().map(|k| self.size_of(k)).filter(|s| *s <= 100000).sum()
     }
-}
-
-pub enum Contents {
-    Data(usize),
-    Directory(Vec<String>)
 }
