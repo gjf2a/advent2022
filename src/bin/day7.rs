@@ -85,13 +85,11 @@ impl FileSystem {
     pub fn part2(&self) -> usize {
         const TOTAL_SPACE: usize = 70000000;
         const SPACE_NEEDED: usize = 30000000;
-        let sizes = self.directories.keys()
-            .map(|k| self.size_of(*k))
-            .collect::<Vec<_>>();
-        let total_in_use: usize = sizes.iter().sum();
-        sizes.iter().filter(|s| TOTAL_SPACE - total_in_use + *s >= SPACE_NEEDED)
+        let mut sizes = self.directories.keys()
+            .map(|k| self.size_of(*k));
+        let space_available = TOTAL_SPACE - sizes.next().unwrap();
+        sizes.filter(|s| space_available + *s >= SPACE_NEEDED)
             .min()
-            .copied()
             .unwrap()
     }
 }
