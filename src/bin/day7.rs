@@ -6,6 +6,7 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| { 
         let system = FileSystem::from_file(filename)?;
         println!("Part 1: {}", system.part1());
+        println!("Part 2: {}", system.part2());
         Ok(())
     })
 }
@@ -79,5 +80,18 @@ impl FileSystem {
 
     pub fn part1(&self) -> usize {
         self.directories.keys().map(|k| self.size_of(*k)).filter(|s| *s <= 100000).sum()
+    }
+
+    pub fn part2(&self) -> usize {
+        const TOTAL_SPACE: usize = 70000000;
+        const SPACE_NEEDED: usize = 30000000;
+        let sizes = self.directories.keys()
+            .map(|k| self.size_of(*k))
+            .collect::<Vec<_>>();
+        let total_in_use: usize = sizes.iter().sum();
+        sizes.iter().filter(|s| TOTAL_SPACE - total_in_use + *s >= SPACE_NEEDED)
+            .min()
+            .copied()
+            .unwrap()
     }
 }
