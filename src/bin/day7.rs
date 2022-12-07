@@ -10,55 +10,74 @@ fn main() -> anyhow::Result<()> {
     })
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FileSystem {
-    directories: BTreeMap<String,(Option<String>,Vec<String>)>,
-    files: BTreeMap<String,(String,usize)>
+    next_inode: usize,
+    directories: BTreeMap<usize,(Option<usize>,BTreeMap<String,usize>)>,
+    files: BTreeMap<usize,usize>
 }
 
 impl FileSystem {
     pub fn from_file(filename: &str) -> anyhow::Result<Self> {
-        let mut system = FileSystem {directories: BTreeMap::new(), files: BTreeMap::new()};
-        system.directories.insert("/".to_owned(), (None, vec![]));
-        let mut current_dir = "/".to_owned();
+        let mut system = FileSystem::default();
+        let mut current_dir = system.new_directory(None);
         for line in all_lines(filename)? {
             if line == "$ cd .." {
-                let info = system.directories.get(current_dir.as_str()).unwrap();
-                current_dir = info.0.as_ref().unwrap().clone();
+                let (parent, _) = system.directories.get(&current_dir).unwrap();
+                current_dir = parent.unwrap();
+            } else if line == "$ cd /" {
+                current_dir = 0;
             } else if line.starts_with("$ cd") {
-                current_dir = line.split_whitespace().skip(2).next().unwrap().to_owned();                
+                let dir_name = line.split_whitespace().skip(2).next().unwrap();                
+                current_dir = *system.directories.get(&current_dir).unwrap().1.get(dir_name).unwrap();
             } else if line == "$ ls" {
                 // Intentionally blank
             } else {
                 let mut parts = line.split_whitespace();
                 let info = parts.next().unwrap();
                 let name = parts.next().unwrap().clone();
-                if info == "dir" {
-                    system.directories.insert(name.to_owned(), (Some(current_dir.clone()), vec![]));
+                let id = if info == "dir" {
+                    system.new_directory(Some(current_dir))
                 } else {
-                    let size = info.parse::<usize>().unwrap();
-                    system.files.insert(name.to_owned(), (current_dir.clone(), size));
-                }
-                let dir = system.directories.get_mut(current_dir.as_str()).unwrap();
-                dir.1.push(name.to_owned());
+                    system.new_file(info.parse::<usize>().unwrap())
+                };
+                system.directories.get_mut(&current_dir).unwrap().1.insert(name.to_owned(), id);
             }
         }
         Ok(system)
     }
 
-    pub fn size_of(&self, filename: &str) -> usize {
-        match self.files.get(filename) {
-            Some((_, size)) => *size,
-            None => match self.directories.get(filename) {
+    fn new_directory(&mut self, parent: Option<usize>) -> usize {
+        let id = self.new_id();
+        self.directories.insert(id, (parent, BTreeMap::new()));
+        id
+    }
+
+    fn new_file(&mut self, size: usize) -> usize {
+        let id = self.new_id();
+        self.files.insert(id, size);
+        id
+    }
+
+    fn new_id(&mut self) -> usize {
+        let id = self.next_inode;
+        self.next_inode += 1;
+        id
+    }
+
+    pub fn size_of(&self, id: usize) -> usize {
+        match self.files.get(&id) {
+            Some(size) => *size,
+            None => match self.directories.get(&id) {
                 None => panic!("This shouldn't happen!"),
                 Some((_,files)) => {
-                    files.iter().map(|f| self.size_of(f)).sum()
+                    files.iter().map(|(_,id)| self.size_of(*id)).sum()
                 }
             }
         }
     }
 
     pub fn part1(&self) -> usize {
-        self.directories.keys().map(|k| self.size_of(k)).filter(|s| *s <= 100000).sum()
+        self.directories.keys().map(|k| self.size_of(*k)).filter(|s| *s <= 100000).sum()
     }
 }
