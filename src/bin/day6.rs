@@ -1,9 +1,9 @@
-use std::collections::{VecDeque, BTreeSet};
+use std::collections::{BTreeSet, VecDeque};
 
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| { 
+    simpler_main(|filename| {
         let line = all_lines(filename)?.next().unwrap();
         println!("Part 1: {}", scanner(line.as_str(), 4));
         println!("Part 2: {}", scanner(line.as_str(), 14));

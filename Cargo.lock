@@ -8,19 +8,20 @@ version = "0.1.0"
 dependencies = [
  "advent_code_lib",
  "anyhow",
- "enum-iterator 1.2.0",
+ "bare_metal_modulo",
+ "enum-iterator",
 ]
 
 [[package]]
 name = "advent_code_lib"
-version = "0.12.17"
-source = "git+https://github.com/gjf2a/advent_code_lib#5bc8f28f1990d50dc9a93c255f4571e400fba3eb"
+version = "0.14.0"
+source = "git+https://github.com/gjf2a/advent_code_lib#77e21d8392fab156c4bd0f704b1e9599d1fe3c09"
 dependencies = [
  "anyhow",
  "bare_metal_modulo",
  "common_macros",
  "derive-getters",
- "enum-iterator 0.6.0",
+ "enum-iterator",
  "hash_histogram",
  "indexmap",
  "maplit",
@@ -43,9 +44,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "bare_metal_modulo"
-version = "1.1.2"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0fa2740e98e77129beafdb67b5ddc441c9a8c9d55da9d1d7d9308010544fab0"
+checksum = "b027655b27fa4aa7dc5da3f0dcb6c79d5043b8a42cce516d20ba61c572942e65"
 dependencies = [
  "num",
  "trait-set",
@@ -70,31 +71,11 @@ dependencies = [
 
 [[package]]
 name = "enum-iterator"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c79a6321a1197d7730510c7e3f6cb80432dfefecb32426de8cea0aa19b4bb8d7"
-dependencies = [
- "enum-iterator-derive 0.6.0",
-]
-
-[[package]]
-name = "enum-iterator"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91a4ec26efacf4aeff80887a175a419493cb6f8b5480d26387eb0bd038976187"
 dependencies = [
- "enum-iterator-derive 1.1.0",
-]
-
-[[package]]
-name = "enum-iterator-derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e94aa31f7c0dc764f57896dc615ddd76fc13b0d5dca7eb6cc5e018a5a09ec06"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "enum-iterator-derive",
 ]
 
 [[package]]

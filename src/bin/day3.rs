@@ -1,8 +1,8 @@
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 use std::collections::BTreeSet;
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| { 
+    simpler_main(|filename| {
         let mut total1 = 0;
         let mut total2 = 0;
         let mut trio = vec![];
@@ -24,7 +24,7 @@ fn score(c: char) -> i64 {
     match c {
         'a'..='z' => c as i64 - 'a' as i64 + 1,
         'A'..='Z' => c as i64 - 'A' as i64 + 27,
-        _ => panic!("oops!")
+        _ => panic!("oops!"),
     }
 }
 

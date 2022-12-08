@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| { 
+    simpler_main(|filename| {
         let system = FileSystem::from_file(filename)?;
         println!("Part 1: {}", system.part1());
         println!("Part 2: {}", system.part2());
@@ -14,8 +14,8 @@ fn main() -> anyhow::Result<()> {
 #[derive(Debug, Default)]
 pub struct FileSystem {
     next_inode: usize,
-    directories: BTreeMap<usize,(Option<usize>,BTreeMap<String,usize>)>,
-    files: BTreeMap<usize,usize>
+    directories: BTreeMap<usize, (Option<usize>, BTreeMap<String, usize>)>,
+    files: BTreeMap<usize, usize>,
 }
 
 impl FileSystem {
@@ -29,8 +29,14 @@ impl FileSystem {
             } else if line == "$ cd /" {
                 current_dir = 0;
             } else if line.starts_with("$ cd") {
-                let dir_name = line.split_whitespace().skip(2).next().unwrap();                
-                current_dir = *system.directories.get(&current_dir).unwrap().1.get(dir_name).unwrap();
+                let dir_name = line.split_whitespace().skip(2).next().unwrap();
+                current_dir = *system
+                    .directories
+                    .get(&current_dir)
+                    .unwrap()
+                    .1
+                    .get(dir_name)
+                    .unwrap();
             } else if line == "$ ls" {
                 // Intentionally blank
             } else {
@@ -42,7 +48,12 @@ impl FileSystem {
                 } else {
                     system.new_file(info.parse::<usize>().unwrap())
                 };
-                system.directories.get_mut(&current_dir).unwrap().1.insert(name.to_owned(), id);
+                system
+                    .directories
+                    .get_mut(&current_dir)
+                    .unwrap()
+                    .1
+                    .insert(name.to_owned(), id);
             }
         }
         Ok(system)
@@ -71,24 +82,26 @@ impl FileSystem {
             Some(size) => *size,
             None => match self.directories.get(&id) {
                 None => panic!("This shouldn't happen!"),
-                Some((_,files)) => {
-                    files.iter().map(|(_,id)| self.size_of(*id)).sum()
-                }
-            }
+                Some((_, files)) => files.iter().map(|(_, id)| self.size_of(*id)).sum(),
+            },
         }
     }
 
     pub fn part1(&self) -> usize {
-        self.directories.keys().map(|k| self.size_of(*k)).filter(|s| *s <= 100000).sum()
+        self.directories
+            .keys()
+            .map(|k| self.size_of(*k))
+            .filter(|s| *s <= 100000)
+            .sum()
     }
 
     pub fn part2(&self) -> usize {
         const TOTAL_SPACE: usize = 70000000;
         const SPACE_NEEDED: usize = 30000000;
-        let mut sizes = self.directories.keys()
-            .map(|k| self.size_of(*k));
+        let mut sizes = self.directories.keys().map(|k| self.size_of(*k));
         let space_available = TOTAL_SPACE - sizes.next().unwrap();
-        sizes.filter(|s| space_available + *s >= SPACE_NEEDED)
+        sizes
+            .filter(|s| space_available + *s >= SPACE_NEEDED)
             .min()
             .unwrap()
     }

@@ -1,10 +1,10 @@
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let mut elves = vec![];
         let mut elf = 0;
-        
+
         for line in all_lines(filename)? {
             let line = line.trim();
             if line.len() == 0 {

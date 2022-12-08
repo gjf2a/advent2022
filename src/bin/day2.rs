@@ -1,8 +1,8 @@
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 use enum_iterator::*;
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| { 
+    simpler_main(|filename| {
         let mut part1_total = 0;
         let mut part2_total = 0;
         for line in all_lines(filename)? {
@@ -37,14 +37,14 @@ impl Rps {
             "A" | "X" => Self::Rock,
             "B" | "Y" => Self::Paper,
             "C" | "Z" => Self::Scissors,
-            _ => panic!("Sorry!")
+            _ => panic!("Sorry!"),
         }
     }
 
     fn move2match(&self, score: i64) -> Self {
         all::<Self>()
-        .find(|me| me.game_score(*self) == score)
-        .unwrap()
+            .find(|me| me.game_score(*self) == score)
+            .unwrap()
     }
 
     fn strategy2(&self, strategy: &str) -> Self {
@@ -52,7 +52,7 @@ impl Rps {
             "X" => self.move2match(LOSE_SCORE),
             "Y" => self.move2match(DRAW_SCORE),
             "Z" => self.move2match(WIN_SCORE),
-            _ => panic!("sorry!")
+            _ => panic!("sorry!"),
         }
     }
 
@@ -66,8 +66,10 @@ impl Rps {
 
     fn defeats(&self, opponent: Self) -> bool {
         match (*self, opponent) {
-            (Rps::Paper, Rps::Rock) | (Rps::Rock, Rps::Scissors) | (Rps::Scissors, Rps::Paper) => true,
-            _ => false
+            (Rps::Paper, Rps::Rock) | (Rps::Rock, Rps::Scissors) | (Rps::Scissors, Rps::Paper) => {
+                true
+            }
+            _ => false,
         }
     }
 
@@ -85,4 +87,3 @@ impl Rps {
         self.game_score(opponent) + self.shape_score()
     }
 }
-

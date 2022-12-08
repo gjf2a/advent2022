@@ -1,8 +1,8 @@
+use advent_code_lib::{all_lines, simpler_main};
 use std::ops::RangeInclusive;
-use advent_code_lib::{simpler_main, all_lines};
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| { 
+    simpler_main(|filename| {
         let mut total1 = 0;
         let mut total2 = 0;
         for line in all_lines(filename)? {
@@ -22,7 +22,10 @@ fn main() -> anyhow::Result<()> {
 
 fn parse_ranges(line: &str) -> (RangeInclusive<i64>, RangeInclusive<i64>) {
     let mut parts = line.split(",");
-    (parse_range(parts.next().unwrap()), parse_range(parts.next().unwrap()))
+    (
+        parse_range(parts.next().unwrap()),
+        parse_range(parts.next().unwrap()),
+    )
 }
 
 fn parse_range(range: &str) -> RangeInclusive<i64> {
@@ -37,5 +40,8 @@ fn fully_contains(container: &RangeInclusive<i64>, containee: &RangeInclusive<i6
 }
 
 fn overlap(elf1: &RangeInclusive<i64>, elf2: &RangeInclusive<i64>) -> bool {
-    elf1.contains(elf2.start()) || elf1.contains(elf2.end()) || elf2.contains(elf1.start()) || elf2.contains(elf1.end())
+    elf1.contains(elf2.start())
+        || elf1.contains(elf2.end())
+        || elf2.contains(elf1.start())
+        || elf2.contains(elf1.end())
 }
