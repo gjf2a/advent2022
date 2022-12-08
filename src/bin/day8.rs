@@ -42,8 +42,8 @@ fn scenic_score(map: &GridWorld, p: Position) -> usize {
                 || match dir {
                     ManhattanDir::N => p.row as usize,
                     ManhattanDir::W => p.col as usize,
-                    ManhattanDir::S => map.height() - p.row as usize,
-                    ManhattanDir::E => map.width() - p.col as usize,
+                    ManhattanDir::S => map.height() - 1 - p.row as usize,
+                    ManhattanDir::E => map.width() - 1 - p.col as usize,
                 },
                 |b| p.manhattan_distance(b),
             )
