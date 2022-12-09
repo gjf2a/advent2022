@@ -5,6 +5,8 @@ use advent_code_lib::{simpler_main, Position, all_lines, Dir};
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
+        println!("Part 1: {}", tail_visit_count::<2>(filename)?);
+        //println!("Part 2: {}", tail_visit_count::<10>(filename)?);
         Ok(())
     })
 }
@@ -13,7 +15,6 @@ fn part1(filename: &str) -> anyhow::Result<usize> {
     let mut head = Position::new();
     let mut tail = Position::new();
     let mut tails = BTreeSet::new();
-    tails.insert(tail);
     for line in all_lines(filename)? {
         let (dir, reps) = parse_line(line.as_str())?;
         for _ in 0..reps {
@@ -23,6 +24,28 @@ fn part1(filename: &str) -> anyhow::Result<usize> {
                 tail = last_head;
             }
             tails.insert(tail);
+        }
+    }
+    Ok(tails.len())
+}
+
+fn tail_visit_count<const N: usize>(filename: &str) -> anyhow::Result<usize> {
+    let mut rope = [Position::new(); N];
+    let mut tails = BTreeSet::new();
+    for line in all_lines(filename)? {
+        let (dir, reps) = parse_line(line.as_str())?;
+        for _ in 0..reps {
+            let last_rope = rope;
+            for i in 1..N {
+                print!("{dir:?} {} {:?} to ", i - 1, rope[i - 1]);
+                rope[i - 1].update(dir);
+                println!("{:?}", rope[i - 1]);
+                if rope[i] != rope[i - 1] && rope[i - 1].neighbors().all(|n| n != rope[i]) {
+                    rope[i] = last_rope[i - 1];
+                }
+                tails.insert(rope[i]);
+            }
+            println!("{rope:?}");
         }
     }
     Ok(tails.len())
