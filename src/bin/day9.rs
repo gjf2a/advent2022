@@ -4,9 +4,8 @@ use advent_code_lib::{simpler_main, Position, all_lines, Dir};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        println!("Part 1: {}", part1(filename)?);
         println!("Part 1: {}", tail_visit_count::<2>(filename)?);
-        //println!("Part 2: {}", tail_visit_count::<10>(filename)?);
+        println!("Part 2: {}", tail_visit_count::<10>(filename)?);
         Ok(())
     })
 }
@@ -37,15 +36,12 @@ fn tail_visit_count<const N: usize>(filename: &str) -> anyhow::Result<usize> {
         for _ in 0..reps {
             let last_rope = rope;
             for i in 1..N {
-                print!("{dir:?} {} {:?} to ", i - 1, rope[i - 1]);
                 rope[i - 1].update(dir);
-                println!("{:?}", rope[i - 1]);
                 if rope[i] != rope[i - 1] && rope[i - 1].neighbors().all(|n| n != rope[i]) {
                     rope[i] = last_rope[i - 1];
                 }
-                tails.insert(rope[i]);
             }
-            println!("{rope:?}");
+            tails.insert(rope[N - 1]);
         }
     }
     Ok(tails.len())
