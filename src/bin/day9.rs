@@ -35,8 +35,8 @@ fn tail_visit_count<const N: usize>(filename: &str) -> anyhow::Result<usize> {
         let (dir, reps) = parse_line(line.as_str())?;
         for _ in 0..reps {
             let last_rope = rope;
+            rope[0].update(dir);
             for i in 1..N {
-                rope[i - 1].update(dir);
                 if rope[i] != rope[i - 1] && rope[i - 1].neighbors().all(|n| n != rope[i]) {
                     rope[i] = last_rope[i - 1];
                 }
