@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use advent_code_lib::{simpler_main, Position, all_lines, Dir};
+use advent_code_lib::{all_lines, simpler_main, Dir, Position};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -64,7 +64,7 @@ fn parse_line(line: &str) -> anyhow::Result<(Dir, usize)> {
         "U" => Dir::N,
         "L" => Dir::W,
         "D" => Dir::S,
-        _ => panic!("I don't recognize this.")
+        _ => panic!("I don't recognize this."),
     };
     let reps = parts.next().unwrap().parse::<usize>()?;
     Ok((dir, reps))
