@@ -42,16 +42,13 @@ fn tail_visit_count<const N: usize>(filename: &str) -> anyhow::Result<usize> {
     for line in all_lines(filename)? {
         let (dir, reps) = parse_line(line.as_str())?;
         for r in 0..reps {
-            let last_rope = rope;
             rope[0].update(dir);
             for i in 1..N {
-                if rope[i] != rope[i - 1] && rope[i - 1].neighbors().all(|n| n != rope[i]) {
-                    rope[i] = last_rope[i - 1];
-                }
+                move_if_needed(rope[i - 1], &mut rope[i]);
             }
             tails.insert(rope[N - 1]);
-            print!("{dir:?} {}", r + 1);
-            print_array(&rope);
+            //print!("{dir:?} {}", r + 1);
+            //print_array(&rope);
         }
     }
     Ok(tails.len())
@@ -68,4 +65,19 @@ fn parse_line(line: &str) -> anyhow::Result<(Dir, usize)> {
     };
     let reps = parts.next().unwrap().parse::<usize>()?;
     Ok((dir, reps))
+}
+
+fn move_if_needed(target: Position, p: &mut Position) {
+    if target.neighbors().all(|n| n != *p) {
+        if p.row < target.row {
+            p.row += 1;
+        } else if p.row > target.row {
+            p.row -= 1;
+        }
+        if p.col < target.col {
+            p.col += 1;
+        } else if p.col > target.col {
+            p.col -= 1;
+        }
+    } 
 }
