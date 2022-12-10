@@ -4,7 +4,7 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let mut cpu = Cpu::new();
         for line in all_lines(filename)? {
-            cpu.instruction(line.as_str());
+            cpu.instruction(line.as_str())?;
         }
         let part1: i64 = (20..=220)
             .step_by(40)
@@ -33,7 +33,7 @@ impl Cpu {
         }
     }
 
-    pub fn instruction(&mut self, instruction: &str) {
+    pub fn instruction(&mut self, instruction: &str) -> anyhow::Result<()> {
         self.record_state();
         let mut parts = instruction.split_whitespace();
         let opcode = parts.next().unwrap();
@@ -41,10 +41,11 @@ impl Cpu {
             "noop" => {}
             "addx" => {
                 self.record_state();
-                self.x += parts.next().unwrap().parse::<i64>().unwrap();
+                self.x += parts.next().unwrap().parse::<i64>()?;
             }
             _ => panic!("Did not recognize {opcode}"),
         }
+        Ok(())
     }
 
     pub fn record_state(&mut self) {
