@@ -59,13 +59,16 @@ impl Cpu {
     }
 
     pub fn render(&self) {
-        let mut on: Vec<bool> = (0..self.x_values.len()).map(|_| false).collect();
-        for (i, x) in self.x_values.iter().copied().enumerate() {
-            let crt_x = (i % 40) as i64;
-            if (x - 1..=x + 1).contains(&crt_x) {
-                on[i] = true;
-            }
-        }
+        let on: Vec<bool> = self
+            .x_values
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, x)| {
+                let crt_x = (i % 40) as i64;
+                (x - 1..=x + 1).contains(&crt_x)
+            })
+            .collect();
         for (i, b) in on.iter().enumerate() {
             if i % 40 == 0 {
                 println!();
