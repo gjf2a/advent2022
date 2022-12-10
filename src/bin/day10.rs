@@ -58,10 +58,6 @@ impl Cpu {
         self.signal_strengths[cycle - 1]
     }
 
-    pub fn x_during(&self, cycle: usize) -> i64 {
-        self.x_values[cycle - 1]
-    }
-
     pub fn render(&self) {
         let mut on: Vec<bool> = (0..self.x_values.len()).map(|_| false).collect();
         for (i, x) in self.x_values.iter().copied().enumerate() {
