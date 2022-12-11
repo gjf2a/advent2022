@@ -11,7 +11,7 @@ use bare_metal_modulo::*;
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let troop1 = MonkeyTroop::from_file(filename, 3)?;
-        println!("Part 1: {}", evaluate(troop1, 20));
+        //println!("Part 1: {}", evaluate(troop1, 20));
         let troop2 = MonkeyTroop::from_file(filename, 1)?;
         println!("Part 2: {}", evaluate(troop2, 10000));
         Ok(())
@@ -72,7 +72,10 @@ impl Operation {
     }
 
     pub fn eval_on(&self, old: ModNum<i64>) -> ModNum<i64> {
-        self.op.eval(Self::convert(self.left, old), Self::convert(self.right, old))
+        self.op.eval(
+            Self::convert(self.left, old),
+            Self::convert(self.right, old),
+        )
     }
 
     pub fn convert(value: Option<i64>, old: ModNum<i64>) -> ModNum<i64> {
@@ -120,7 +123,7 @@ impl Monkey {
         let line1 = lines.next();
         if line1.is_some() {
             let items: VecDeque<i64> = all_nums_from(lines.next().unwrap());
-            let product = items.iter().product();
+            let product = items.iter().map(|n| n + 1).product();
             let items = items.iter().map(|n| ModNum::new(*n, product)).collect();
             let op = Operation::from(lines.next().unwrap().as_str());
             let div_test_value = one_num_from::<i64>(lines.next().unwrap());
@@ -145,7 +148,7 @@ impl Monkey {
 #[derive(Clone)]
 pub struct MonkeyTroop {
     monkeys: Vec<Monkey>,
-    worry_div: i64
+    worry_div: i64,
 }
 
 impl MonkeyTroop {
@@ -162,7 +165,11 @@ impl MonkeyTroop {
                         *item = ModNum::new(item.a(), gcf);
                     }
                 }
-                return Ok(Self {monkeys, worry_div});
+                for monkey in monkeys.iter() {
+                    println!("{monkey:?}");
+                    println!();
+                }
+                return Ok(Self { monkeys, worry_div });
             }
         }
     }
@@ -176,9 +183,15 @@ impl MonkeyTroop {
     pub fn throw_first(&mut self, monkey: usize) {
         if let Some(mut worry) = self.monkeys[monkey].items.pop_front() {
             worry = self.monkeys[monkey].op.eval_on(worry);
-            worry = (worry / self.worry_div).unwrap();
+            if self.worry_div > 1 {
+                worry = (worry / self.worry_div).unwrap();
+            }
             let test = ModNum::new(worry.a(), self.monkeys[monkey].div_test_value) == 0;
-            let target = if test {self.monkeys[monkey].true_monkey} else {self.monkeys[monkey].false_monkey};
+            let target = if test {
+                self.monkeys[monkey].true_monkey
+            } else {
+                self.monkeys[monkey].false_monkey
+            };
             self.monkeys[target].items.push_back(worry);
             self.monkeys[monkey].total_inspections += 1;
         }
