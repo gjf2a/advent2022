@@ -5,14 +5,11 @@ use advent_code_lib::{all_lines, simpler_main};
 use anyhow::bail;
 use bare_metal_modulo::*;
 
-// Expected result on example: 2713310158
-// Actual:                     2714454444
-
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        let troop1 = MonkeyTroop::from_file(filename, 3)?;
-        //println!("Part 1: {}", evaluate(troop1, 20));
-        let troop2 = MonkeyTroop::from_file(filename, 1)?;
+        let troop1 = MonkeyTroop::from_file(filename, Some(3))?;
+        println!("Part 1: {}", evaluate(troop1, 20));
+        let troop2 = MonkeyTroop::from_file(filename, None)?;
         println!("Part 2: {}", evaluate(troop2, 10000));
         Ok(())
     })
@@ -148,11 +145,11 @@ impl Monkey {
 #[derive(Clone)]
 pub struct MonkeyTroop {
     monkeys: Vec<Monkey>,
-    worry_div: i64,
+    worry_div: Option<i64>,
 }
 
 impl MonkeyTroop {
-    pub fn from_file(filename: &str, worry_div: i64) -> anyhow::Result<MonkeyTroop> {
+    pub fn from_file(filename: &str, worry_div: Option<i64>) -> anyhow::Result<MonkeyTroop> {
         let mut monkeys = vec![];
         let mut lines = all_lines(filename)?;
         loop {
@@ -164,10 +161,6 @@ impl MonkeyTroop {
                     for item in monkey.items.iter_mut() {
                         *item = ModNum::new(item.a(), gcf);
                     }
-                }
-                for monkey in monkeys.iter() {
-                    println!("{monkey:?}");
-                    println!();
                 }
                 return Ok(Self { monkeys, worry_div });
             }
@@ -183,9 +176,9 @@ impl MonkeyTroop {
     pub fn throw_first(&mut self, monkey: usize) {
         if let Some(mut worry) = self.monkeys[monkey].items.pop_front() {
             worry = self.monkeys[monkey].op.eval_on(worry);
-            if self.worry_div > 1 {
-                worry = (worry / self.worry_div).unwrap();
-            }
+            self.worry_div.map(|d| {
+                worry = ModNum::new(worry.a() / d, worry.m());
+            });
             let test = ModNum::new(worry.a(), self.monkeys[monkey].div_test_value) == 0;
             let target = if test {
                 self.monkeys[monkey].true_monkey
