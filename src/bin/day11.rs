@@ -1,14 +1,15 @@
 use std::fmt::Debug;
 use std::{collections::VecDeque, str::FromStr};
+use num_bigint::BigInt;
 
 use advent_code_lib::{all_lines, simpler_main};
 use anyhow::bail;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        let troop1 = MonkeyTroop::from_file(filename, 3)?;
+        let troop1 = MonkeyTroop::from_file(filename, BigInt::from(3))?;
         println!("Part 1: {}", evaluate(troop1, 20));
-        let troop2 = MonkeyTroop::from_file(filename, 1)?;
+        let troop2 = MonkeyTroop::from_file(filename, BigInt::from(1))?;
         println!("Part 2: {}", evaluate(troop2, 10000));
         Ok(())
     })
@@ -28,7 +29,7 @@ pub enum OpCode {
 }
 
 impl OpCode {
-    fn eval(&self, left: i128, right: i128) -> i128 {
+    fn eval(&self, left: &BigInt, right: &BigInt) -> BigInt {
         match self {
             OpCode::Plus => left + right,
             OpCode::Times => left * right,
@@ -48,10 +49,10 @@ impl FromStr for OpCode {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Operation {
-    left: Option<i128>,
-    right: Option<i128>,
+    left: Option<BigInt>,
+    right: Option<BigInt>,
     op: OpCode,
 }
 
@@ -61,22 +62,22 @@ impl Operation {
         assert_eq!(parts.next().unwrap(), "Operation:");
         assert_eq!(parts.next().unwrap(), "new");
         assert_eq!(parts.next().unwrap(), "=");
-        let left = parts.next().unwrap().parse::<i128>().ok();
+        let left = parts.next().unwrap().parse::<BigInt>().ok();
         let op = parts.next().unwrap().parse::<OpCode>().unwrap();
-        let right = parts.next().unwrap().parse::<i128>().ok();
+        let right = parts.next().unwrap().parse::<BigInt>().ok();
         Operation { left, right, op }
     }
 
-    pub fn eval_on(&self, old: i128) -> i128 {
-        self.op.eval(self.left.unwrap_or(old), self.right.unwrap_or(old))
+    pub fn eval_on(&self, old: &BigInt) -> BigInt {
+        self.op.eval(self.left.as_ref().unwrap_or(old), self.right.as_ref().unwrap_or(old))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Monkey {
-    items: VecDeque<i128>,
+    items: VecDeque<BigInt>,
     op: Operation,
-    div_test_value: i128,
+    div_test_value: BigInt,
     true_monkey: usize,
     false_monkey: usize,
     total_inspections: u128,
@@ -113,7 +114,7 @@ impl Monkey {
         if line1.is_some() {
             let items = all_nums_from(lines.next().unwrap());
             let op = Operation::from(lines.next().unwrap().as_str());
-            let div_test_value = one_num_from::<i128>(lines.next().unwrap());
+            let div_test_value = one_num_from::<BigInt>(lines.next().unwrap());
             let true_monkey = one_num_from::<usize>(lines.next().unwrap());
             let false_monkey = one_num_from::<usize>(lines.next().unwrap());
             lines.next();
@@ -135,11 +136,11 @@ impl Monkey {
 #[derive(Clone)]
 pub struct MonkeyTroop {
     monkeys: Vec<Monkey>,
-    worry_div: i128
+    worry_div: BigInt
 }
 
 impl MonkeyTroop {
-    pub fn from_file(filename: &str, worry_div: i128) -> anyhow::Result<MonkeyTroop> {
+    pub fn from_file(filename: &str, worry_div: BigInt) -> anyhow::Result<MonkeyTroop> {
         let mut monkeys = vec![];
         let mut lines = all_lines(filename)?;
         loop {
@@ -159,9 +160,9 @@ impl MonkeyTroop {
 
     pub fn throw_first(&mut self, monkey: usize) {
         if let Some(mut worry) = self.monkeys[monkey].items.pop_front() {
-            worry = self.monkeys[monkey].op.eval_on(worry);
-            worry = worry / self.worry_div;
-            let test = worry % self.monkeys[monkey].div_test_value == 0;
+            worry = self.monkeys[monkey].op.eval_on(&worry);
+            worry = worry / self.worry_div.clone();
+            let test = worry.clone() % self.monkeys[monkey].div_test_value.clone() == BigInt::from(0);
             let target = if test {self.monkeys[monkey].true_monkey} else {self.monkeys[monkey].false_monkey};
             self.monkeys[target].items.push_back(worry);
             self.monkeys[monkey].total_inspections += 1;

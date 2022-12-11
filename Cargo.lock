@@ -10,12 +10,13 @@ dependencies = [
  "anyhow",
  "bare_metal_modulo",
  "enum-iterator",
+ "num-bigint",
 ]
 
 [[package]]
 name = "advent_code_lib"
-version = "0.14.0"
-source = "git+https://github.com/gjf2a/advent_code_lib#77e21d8392fab156c4bd0f704b1e9599d1fe3c09"
+version = "0.14.1"
+source = "git+https://github.com/gjf2a/advent_code_lib#6b4547f9172adfdfc5417140a6f1ea8a2fcd88ee"
 dependencies = [
  "anyhow",
  "bare_metal_modulo",

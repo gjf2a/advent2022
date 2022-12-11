@@ -10,3 +10,4 @@ advent_code_lib = {git = "https://github.com/gjf2a/advent_code_lib"}
 enum-iterator = "1.2.0"
 anyhow = "1"
 bare_metal_modulo = "1"
+num-bigint = "0.4"
