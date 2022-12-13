@@ -1,6 +1,9 @@
 use std::cmp::min;
 
-use advent_code_lib::{GridCharWorld, simpler_main, breadth_first_search, Position, ParentMap, SearchQueue, ContinueSearch};
+use advent_code_lib::{
+    breadth_first_search, simpler_main, ContinueSearch, GridCharWorld, ParentMap, Position,
+    SearchQueue,
+};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -15,7 +18,7 @@ fn height_of(c: char) -> char {
     match c {
         'S' => 'a',
         'E' => 'z',
-        _ => c
+        _ => c,
     }
 }
 
@@ -32,7 +35,9 @@ fn distance_to_goal_from(map: &GridCharWorld, start: Position) -> Option<usize> 
     let parents: ParentMap<Position> = breadth_first_search(&start, |p, q| {
         let p_height = height_of(map.value(*p).unwrap());
         for neighbor in p.manhattan_neighbors() {
-            let distance = map.value(neighbor).map(|h| climb_distance(p_height, height_of(h)));
+            let distance = map
+                .value(neighbor)
+                .map(|h| climb_distance(p_height, height_of(h)));
             if let Some(distance) = distance {
                 if distance <= 1 {
                     q.enqueue(&neighbor);
@@ -41,9 +46,18 @@ fn distance_to_goal_from(map: &GridCharWorld, start: Position) -> Option<usize> 
         }
         ContinueSearch::Yes
     });
-    parents.path_back_from(&end).map(|path_back| path_back.len() - 1)
+    parents
+        .path_back_from(&end)
+        .map(|path_back| path_back.len() - 1)
 }
 
 fn part2(map: &GridCharWorld) -> usize {
-    min(part1(map), map.positions_for('a').iter().filter_map(|start| distance_to_goal_from(map, *start)).min().unwrap())
+    min(
+        part1(map),
+        map.positions_for('a')
+            .iter()
+            .filter_map(|start| distance_to_goal_from(map, *start))
+            .min()
+            .unwrap(),
+    )
 }

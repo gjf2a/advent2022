@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use std::str::{FromStr, Chars};
 use std::iter::Peekable;
+use std::str::{Chars, FromStr};
 
 use advent_code_lib::{all_lines, simpler_main};
 use anyhow::{anyhow, bail};
@@ -12,6 +12,7 @@ fn main() -> anyhow::Result<()> {
         for line in all_lines(filename)? {
             if line.len() > 0 {
                 let line_list = line.parse::<List>()?;
+                assert_eq!(format!("{}", line_list), line);
                 pair.push(line_list);
             } else {
                 pairs.push(pair);
@@ -30,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
 pub enum List {
     Value(i64),
-    Values(Vec<List>)
+    Values(Vec<List>),
 }
 
 impl Display for List {

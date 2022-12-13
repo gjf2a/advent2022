@@ -28,15 +28,17 @@ impl FileEntry {
     pub fn size(&self, system: &FileSystem) -> usize {
         match self {
             FileEntry::File(size) => *size,
-            FileEntry::Directory(_, children) => 
-            children.values().map(|i| system.inode2object[*i].size(system)).sum(),
+            FileEntry::Directory(_, children) => children
+                .values()
+                .map(|i| system.inode2object[*i].size(system))
+                .sum(),
         }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct FileSystem {
-    inode2object: Vec<FileEntry>
+    inode2object: Vec<FileEntry>,
 }
 
 impl FileSystem {
@@ -78,7 +80,8 @@ impl FileSystem {
 
     fn new_directory(&mut self, parent: Option<usize>) -> usize {
         let id = self.inode2object.len();
-        self.inode2object.push(FileEntry::Directory(parent, BTreeMap::new()));
+        self.inode2object
+            .push(FileEntry::Directory(parent, BTreeMap::new()));
         id
     }
 
@@ -89,7 +92,11 @@ impl FileSystem {
     }
 
     pub fn directory_sizes(&self) -> Vec<usize> {
-        self.inode2object.iter().filter(|entry| entry.is_directory()).map(|dir| dir.size(self)).collect()
+        self.inode2object
+            .iter()
+            .filter(|entry| entry.is_directory())
+            .map(|dir| dir.size(self))
+            .collect()
     }
 
     pub fn part1(&self) -> usize {
@@ -102,6 +109,12 @@ impl FileSystem {
         const SPACE_NEEDED: usize = 30000000;
         let sizes = self.directory_sizes();
         let space_available = TOTAL_SPACE - sizes[0];
-        sizes.iter().skip(1).filter(|s| space_available + *s >= SPACE_NEEDED).min().copied().unwrap()
+        sizes
+            .iter()
+            .skip(1)
+            .filter(|s| space_available + *s >= SPACE_NEEDED)
+            .min()
+            .copied()
+            .unwrap()
     }
 }
