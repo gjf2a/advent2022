@@ -18,6 +18,7 @@ fn main() -> anyhow::Result<()> {
                 pair = vec![];
             }
         }
+        pairs.push(pair);
         for pair in pairs.iter() {
             println!("{}", pair[0]);
             println!("{}", pair[1]);
@@ -77,7 +78,10 @@ impl List {
             let mut list = vec![];
             loop {
                 match chars.peek().ok_or(anyhow!("Unmatched '['"))? {
-                    ']' => return Ok(Self::Values(list)),
+                    ']' => {
+                        chars.next();
+                        return Ok(Self::Values(list));
+                    }
                     ',' => {
                         chars.next();
                     }
