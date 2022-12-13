@@ -1,7 +1,7 @@
+use std::cmp::{min, Ordering};
 use std::fmt::Display;
 use std::iter::Peekable;
 use std::str::{Chars, FromStr};
-use std::cmp::{Ordering, min};
 
 use advent_code_lib::{all_lines, simpler_main};
 use anyhow::{anyhow, bail};
@@ -22,6 +22,7 @@ fn main() -> anyhow::Result<()> {
         }
         pairs.push(pair);
         println!("Part 1: {}", part1(&pairs));
+        println!("Part 2: {}", part2(&pairs));
         Ok(())
     })
 }
@@ -36,6 +37,33 @@ pub fn part1(pairs: &Vec<Vec<List>>) -> usize {
     index_total
 }
 
+pub fn part2(pairs: &Vec<Vec<List>>) -> usize {
+    let mut flattened = vec![];
+    for pair in pairs.iter() {
+        for item in pair.iter() {
+            flattened.push(item.clone());
+        }
+    }
+    let divider1: List = "[[2]]".parse().unwrap();
+    flattened.push(divider1.clone());
+    let divider2: List = "[[6]]".parse().unwrap();
+    flattened.push(divider2.clone());
+    flattened.sort();
+    let pos1 = divider_index_in(&flattened, &divider1);
+    let pos2 = divider_index_in(&flattened, &divider2);
+    pos1 * pos2
+}
+
+pub fn divider_index_in(sorted: &Vec<List>, divider: &List) -> usize {
+    sorted
+        .iter()
+        .enumerate()
+        .find(|(_, v)| **v == *divider)
+        .map(|(i, _)| i)
+        .unwrap()
+        + 1
+}
+
 #[derive(Eq, PartialEq, Ord, Debug, Clone)]
 pub enum List {
     Value(i64),
@@ -44,7 +72,10 @@ pub enum List {
 
 impl PartialOrd for List {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if let Some((i1, i2)) = self.integer().and_then(|i1| other.integer().map(|i2| (i1, i2))) {
+        if let Some((i1, i2)) = self
+            .integer()
+            .and_then(|i1| other.integer().map(|i2| (i1, i2)))
+        {
             i1.partial_cmp(&i2)
         } else {
             let l1 = self.list();
@@ -54,7 +85,7 @@ impl PartialOrd for List {
             for i in 0..min(len1, len2) {
                 match l1[i].partial_cmp(&l2[i]).unwrap() {
                     Ordering::Equal => {}
-                    ordering => return Some(ordering)
+                    ordering => return Some(ordering),
                 }
             }
             len1.partial_cmp(&len2)
