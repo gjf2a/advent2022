@@ -44,14 +44,18 @@ pub fn part2(pairs: &Vec<Vec<List>>) -> usize {
             flattened.push(item.clone());
         }
     }
-    let divider1: List = "[[2]]".parse().unwrap();
-    flattened.push(divider1.clone());
-    let divider2: List = "[[6]]".parse().unwrap();
-    flattened.push(divider2.clone());
+    let dividers: Vec<List> = ["[[2]]", "[[6]]"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+    dividers
+        .iter()
+        .for_each(|divider| flattened.push(divider.clone()));
     flattened.sort();
-    let pos1 = divider_index_in(&flattened, &divider1);
-    let pos2 = divider_index_in(&flattened, &divider2);
-    pos1 * pos2
+    dividers
+        .iter()
+        .map(|divider| divider_index_in(&flattened, divider))
+        .product()
 }
 
 pub fn divider_index_in(sorted: &Vec<List>, divider: &List) -> usize {
