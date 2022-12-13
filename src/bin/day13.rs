@@ -60,39 +60,47 @@ impl List {
     fn recursive_parse(chars: &mut Peekable<Chars>) -> anyhow::Result<Self> {
         let test = chars.peek().ok_or(anyhow!("No input"))?;
         if test.is_digit(10) {
-            let mut number = String::new();
-            number.push(chars.next().unwrap());
-            loop {
-                match chars.peek() {
-                    None => return Ok(Self::Value(number.parse().unwrap())),
-                    Some(digit) => {
-                        if digit.is_digit(10) {
-                            number.push(chars.next().unwrap());
-                        } else {
-                            return Ok(Self::Value(number.parse().unwrap()));
-                        }
-                    }
-                }
-            }
+            Self::parse_number(chars)
         } else if *test == '[' {
-            chars.next();
-            let mut list = vec![];
-            loop {
-                match chars.peek().ok_or(anyhow!("Unmatched '['"))? {
-                    ']' => {
-                        chars.next();
-                        return Ok(Self::Values(list));
-                    }
-                    ',' => {
-                        chars.next();
-                    }
-                    _ => {
-                        list.push(Self::recursive_parse(chars)?);
-                    }
-                }
-            }
+            Self::parse_list(chars)
         } else {
             bail!("Unrecognized character: {test}")
+        }
+    }
+
+    fn parse_number(chars: &mut Peekable<Chars>) -> anyhow::Result<Self> {
+        let mut number = String::new();
+        number.push(chars.next().unwrap());
+        loop {
+            match chars.peek() {
+                None => return Ok(Self::Value(number.parse()?)),
+                Some(digit) => {
+                    if digit.is_digit(10) {
+                        number.push(chars.next().unwrap());
+                    } else {
+                        return Ok(Self::Value(number.parse()?));
+                    }
+                }
+            }
+        }
+    }
+
+    fn parse_list(chars: &mut Peekable<Chars>) -> anyhow::Result<Self> {
+        chars.next();
+        let mut list = vec![];
+        loop {
+            match chars.peek().ok_or(anyhow!("Unmatched '['"))? {
+                ']' => {
+                    chars.next();
+                    return Ok(Self::Values(list));
+                }
+                ',' => {
+                    chars.next();
+                }
+                _ => {
+                    list.push(Self::recursive_parse(chars)?);
+                }
+            }
         }
     }
 }
