@@ -7,11 +7,21 @@ use anyhow::{anyhow, bail};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
+        let mut pairs = vec![];
+        let mut pair = vec![];
         for line in all_lines(filename)? {
             if line.len() > 0 {
                 let line_list = line.parse::<List>()?;
-                println!("{line_list}");
+                pair.push(line_list);
+            } else {
+                pairs.push(pair);
+                pair = vec![];
             }
+        }
+        for pair in pairs.iter() {
+            println!("{}", pair[0]);
+            println!("{}", pair[1]);
+            println!();
         }
         Ok(())
     })
@@ -27,11 +37,18 @@ impl Display for List {
         match self {
             Self::Value(v) => write!(f, "{}", *v),
             Self::Values(vs) => {
-                write!(f, "[")?;
-                for v in vs {
-                    write!(f, "{},", *v)?;
+                let mut vs = vs.iter();
+                let first = match vs.next() {
+                    None => "".to_owned(),
+                    Some(v) => format!("{}", *v),
+                };
+                write!(f, "[{}", first)?;
+                loop {
+                    match vs.next() {
+                        None => return write!(f, "]"),
+                        Some(v) => write!(f, ",{}", *v)?,
+                    }
                 }
-                write!(f, "]")
             }
         }
     }
