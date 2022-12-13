@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::iter::Peekable;
 use std::str::{Chars, FromStr};
+use std::cmp::{Ordering, min};
 
 use advent_code_lib::{all_lines, simpler_main};
 use anyhow::{anyhow, bail};
@@ -20,18 +21,45 @@ fn main() -> anyhow::Result<()> {
             }
         }
         pairs.push(pair);
-        for pair in pairs.iter() {
-            println!("{}", pair[0]);
-            println!("{}", pair[1]);
-            println!();
-        }
+        println!("Part 1: {}", part1(&pairs));
         Ok(())
     })
 }
 
+pub fn part1(pairs: &Vec<Vec<List>>) -> usize {
+    let mut index_total = 0;
+    for (i, pair) in pairs.iter().enumerate() {
+        if pair[0] < pair[1] {
+            index_total += i + 1;
+        }
+    }
+    index_total
+}
+
+#[derive(Eq, PartialEq, Ord, Debug, Clone)]
 pub enum List {
     Value(i64),
     Values(Vec<List>),
+}
+
+impl PartialOrd for List {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if let Some((i1, i2)) = self.integer().and_then(|i1| other.integer().map(|i2| (i1, i2))) {
+            i1.partial_cmp(&i2)
+        } else {
+            let l1 = self.list();
+            let l2 = other.list();
+            let len1 = l1.len();
+            let len2 = l2.len();
+            for i in 0..min(len1, len2) {
+                match l1[i].partial_cmp(&l2[i]).unwrap() {
+                    Ordering::Equal => {}
+                    ordering => return Some(ordering)
+                }
+            }
+            len1.partial_cmp(&len2)
+        }
+    }
 }
 
 impl Display for List {
@@ -57,6 +85,21 @@ impl Display for List {
 }
 
 impl List {
+    pub fn integer(&self) -> Option<i64> {
+        if let Self::Value(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+
+    pub fn list(&self) -> Vec<Self> {
+        match self {
+            List::Value(v) => vec![List::Value(*v)],
+            List::Values(vs) => vs.clone(),
+        }
+    }
+
     fn recursive_parse(chars: &mut Peekable<Chars>) -> anyhow::Result<Self> {
         let test = chars.peek().ok_or(anyhow!("No input"))?;
         if test.is_digit(10) {
