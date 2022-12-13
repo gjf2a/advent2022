@@ -119,6 +119,15 @@ impl Display for List {
     }
 }
 
+impl FromStr for List {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let mut chars = s.chars().peekable();
+        Self::recursive_parse(&mut chars)
+    }
+}
+
 impl List {
     pub fn integer(&self) -> Option<i64> {
         if let Self::Value(v) = self {
@@ -180,14 +189,5 @@ impl List {
                 }
             }
         }
-    }
-}
-
-impl FromStr for List {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        let mut chars = s.chars().peekable();
-        Self::recursive_parse(&mut chars)
     }
 }
