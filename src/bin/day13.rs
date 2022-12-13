@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
         let mut pair = vec![];
         for line in all_lines(filename)? {
             if line.len() > 0 {
-                let line_list = line.parse::<List>()?;
+                let line_list = line.parse()?;
                 assert_eq!(format!("{}", line_list), line);
                 pair.push(line_list);
             } else {
