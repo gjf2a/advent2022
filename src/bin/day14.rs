@@ -7,20 +7,15 @@ use advent_code_lib::{all_lines, simpler_main, Dir, InfiniteGrid, Position};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        let rocks = RockSection::from_file(filename)?;
-        println!("Part 1: {}", part1(rocks.clone()));
-        println!("Part 2: {}", part2(rocks));
+        let mut rocks = RockSection::from_file(filename)?;
+        println!("Part 1: {}", count_sand(rocks.clone()));
+        rocks.add_floor();
+        println!("Part 2: {}", count_sand(rocks));
         Ok(())
     })
 }
 
-pub fn part1(mut rocks: RockSection) -> usize {
-    rocks.pour_sand_until_full();
-    rocks.sand_count
-}
-
-pub fn part2(mut rocks: RockSection) -> usize {
-    rocks.add_floor();
+pub fn count_sand(mut rocks: RockSection) -> usize {
     rocks.pour_sand_until_full();
     rocks.sand_count
 }
