@@ -7,11 +7,18 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let rocks = RockSection::from_file(filename)?;
         println!("Part 1: {}", part1(rocks.clone()));
+        println!("Part 2: {}", part2(rocks));
         Ok(())
     })
 }
 
 pub fn part1(mut rocks: RockSection) -> usize {
+    rocks.pour_sand_until_full();
+    rocks.sand_count
+}
+
+pub fn part2(mut rocks: RockSection) -> usize {
+    rocks.add_floor();
     rocks.pour_sand_until_full();
     rocks.sand_count
 }
@@ -38,6 +45,7 @@ impl Display for Contents {
 pub struct RockSection {
     cells: InfiniteGrid<Contents>,
     sand_count: usize,
+    floor_level: Option<isize>,
 }
 
 impl Display for RockSection {
@@ -62,8 +70,12 @@ impl RockSection {
         Ok(result)
     }
 
+    pub fn add_floor(&mut self) {
+        self.floor_level = Some(self.cells.max_y() + 2);
+    }
+
     pub fn blocked(&self, p: Position) -> bool {
-        self.cells.get_pos(p) != Contents::Air
+        self.floor_level.map_or(false, |f| p.row >= f) || self.cells.get_pos(p) != Contents::Air
     }
 
     pub fn add_path(&mut self, path: &str) {
@@ -86,12 +98,18 @@ impl RockSection {
     }
 
     pub fn add_sand(&mut self) {
-        let bottom = self.cells.max_y();
         let mut sand_pos = Position {col: 500, row: 0};
+        if self.blocked(sand_pos) {
+            return;
+        }
+        let bottom = match self.floor_level {
+            None => Some(self.cells.max_y()),
+            Some(_) => None,
+        };
         loop {
             match self.next_sand_move(sand_pos) {
                 Some(updated) => {
-                    if updated.row > bottom {
+                    if bottom.map_or(false, |bottom| updated.row > bottom) {
                         return;
                     } else {
                         sand_pos = updated;
