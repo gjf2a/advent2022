@@ -1,4 +1,4 @@
-use std::cmp::{min, max};
+use std::{cmp::{min, max}, fmt::Display};
 
 use advent_code_lib::{simpler_main, InfiniteGrid, all_lines};
 
@@ -6,7 +6,7 @@ use advent_code_lib::{simpler_main, InfiniteGrid, all_lines};
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let rocks = RockSection::from_file(filename)?;
-        println!("{rocks:?}");
+        println!("{rocks}");
         Ok(())
     })
 }
@@ -19,9 +19,25 @@ pub enum Contents {
     Rock,
 }
 
+impl Display for Contents {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Self::Air => ".",
+            Self::Rock => "#",
+            Self::Sand => "o",
+        })
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 pub struct RockSection {
     cells: InfiniteGrid<Contents>
+}
+
+impl Display for RockSection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.cells)
+    }
 }
 
 fn pair_from(s: &str) -> (isize, isize) {
