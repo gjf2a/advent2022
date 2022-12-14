@@ -1,7 +1,9 @@
-use std::{cmp::{min, max}, fmt::Display};
+use std::{
+    cmp::{max, min},
+    fmt::Display,
+};
 
-use advent_code_lib::{simpler_main, InfiniteGrid, all_lines, Position, Dir};
-
+use advent_code_lib::{all_lines, simpler_main, Dir, InfiniteGrid, Position};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -26,18 +28,19 @@ pub fn part2(mut rocks: RockSection) -> usize {
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Contents {
     #[default]
-    Air, 
-    Sand, 
+    Air,
+    Sand,
     Rock,
 }
 
 impl Display for Contents {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
+        let c = match self {
             Self::Air => ".",
             Self::Rock => "#",
             Self::Sand => "o",
-        })
+        };
+        write!(f, "{c}")
     }
 }
 
@@ -84,21 +87,23 @@ impl RockSection {
         for pair in pairs {
             let (x2, y2) = pair_from(pair);
             if x2 == x1 {
-                for y in min(y1, y2)..=max(y1, y2) {
-                    self.cells.add(x1, y, Contents::Rock);
-                } 
+                self.add_from((min(y1, y2)..=max(y1, y2)).map(|y| (x1, y)));
             } else {
-                for x in min(x1, x2)..=max(x1, x2) {
-                    self.cells.add(x, y1, Contents::Rock);
-                }
+                self.add_from((min(x1, x2)..=max(x1, x2)).map(|x| (x, y1)));
             }
             x1 = x2;
             y1 = y2;
         }
     }
 
+    fn add_from<I: Iterator<Item = (isize, isize)>>(&mut self, cells: I) {
+        for (x, y) in cells {
+            self.cells.add(x, y, Contents::Rock);
+        }
+    }
+
     pub fn add_sand(&mut self) {
-        let mut sand_pos = Position {col: 500, row: 0};
+        let mut sand_pos = Position { col: 500, row: 0 };
         if self.blocked(sand_pos) {
             return;
         }
@@ -137,6 +142,50 @@ impl RockSection {
     }
 
     pub fn next_sand_move(&self, sand_pos: Position) -> Option<Position> {
-        [Dir::S, Dir::Sw, Dir::Se].iter().map(|d| sand_pos.updated(*d)).find(|p| !self.blocked(*p))
+        [Dir::S, Dir::Sw, Dir::Se]
+            .iter()
+            .map(|d| sand_pos.updated(*d))
+            .find(|p| !self.blocked(*p))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::RockSection;
+
+    #[test]
+    pub fn test1() {
+        let mut rocks = RockSection::from_file("ex/day14.txt").unwrap();
+        rocks.pour_sand_until_full();
+        let expected = "......o...
+.....ooo..
+....#ooo##
+...o#ooo#.
+..###ooo#.
+....oooo#.
+.o.ooooo#.
+#########.
+";
+        assert_eq!(expected, format!("{rocks}"));
+    }
+
+    #[test]
+    pub fn test2() {
+        let mut rocks = RockSection::from_file("ex/day14.txt").unwrap();
+        rocks.add_floor();
+        rocks.pour_sand_until_full();
+        let expected = "..........o..........
+.........ooo.........
+........ooooo........
+.......ooooooo.......
+......oo#ooo##o......
+.....ooo#ooo#ooo.....
+....oo###ooo#oooo....
+...oooo.oooo#ooooo...
+..oooooooooo#oooooo..
+.ooo#########ooooooo.
+ooooo.......ooooooooo
+";
+        assert_eq!(expected, format!("{rocks}"));
     }
 }
