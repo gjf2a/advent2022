@@ -1,14 +1,19 @@
 use std::{cmp::{min, max}, fmt::Display};
 
-use advent_code_lib::{simpler_main, InfiniteGrid, all_lines};
+use advent_code_lib::{simpler_main, InfiniteGrid, all_lines, Position, Dir};
 
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let rocks = RockSection::from_file(filename)?;
-        println!("{rocks}");
+        println!("Part 1: {}", part1(rocks.clone()));
         Ok(())
     })
+}
+
+pub fn part1(mut rocks: RockSection) -> usize {
+    rocks.pour_sand_until_full();
+    rocks.sand_count
 }
 
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
@@ -31,7 +36,8 @@ impl Display for Contents {
 
 #[derive(Default, Clone, Debug)]
 pub struct RockSection {
-    cells: InfiniteGrid<Contents>
+    cells: InfiniteGrid<Contents>,
+    sand_count: usize,
 }
 
 impl Display for RockSection {
@@ -56,6 +62,10 @@ impl RockSection {
         Ok(result)
     }
 
+    pub fn blocked(&self, p: Position) -> bool {
+        self.cells.get_pos(p) != Contents::Air
+    }
+
     pub fn add_path(&mut self, path: &str) {
         let mut pairs = path.split_whitespace().filter(|p| *p != "->");
         let (mut x1, mut y1) = pair_from(pairs.next().unwrap());
@@ -73,5 +83,42 @@ impl RockSection {
             x1 = x2;
             y1 = y2;
         }
+    }
+
+    pub fn add_sand(&mut self) {
+        let bottom = self.cells.max_y();
+        let mut sand_pos = Position {col: 500, row: 0};
+        loop {
+            match self.next_sand_move(sand_pos) {
+                Some(updated) => {
+                    if updated.row > bottom {
+                        return;
+                    } else {
+                        sand_pos = updated;
+                    }
+                }
+                None => {
+                    self.cells.add_pos(sand_pos, Contents::Sand);
+                    self.sand_count += 1;
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn pour_sand_until_full(&mut self) {
+        let mut last_count = self.sand_count;
+        loop {
+            self.add_sand();
+            if self.sand_count == last_count {
+                return;
+            } else {
+                last_count = self.sand_count;
+            }
+        }
+    }
+
+    pub fn next_sand_move(&self, sand_pos: Position) -> Option<Position> {
+        [Dir::S, Dir::Sw, Dir::Se].iter().map(|d| sand_pos.updated(*d)).find(|p| !self.blocked(*p))
     }
 }
