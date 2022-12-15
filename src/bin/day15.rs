@@ -136,31 +136,33 @@ pub struct Ranges {
 }
 
 impl Ranges {
-    pub fn add_range(&mut self, new_range: Range) {
-        self.ranges.push(new_range);
-        self.ranges.sort();
-        let mut old_ranges = VecDeque::new();
-        loop {
-            match self.ranges.pop() {
-                None => break,
-                Some(popped) => old_ranges.push_front(popped),
-            }
-        }
-
-        let mut current = old_ranges.pop_front().unwrap();
-        loop {
-            match old_ranges.pop_front() {
-                Some(mut popped) => {
-                    if current.overlaps_with(&popped) {
-                        current.absorb(&popped);
-                    } else {
-                        std::mem::swap(&mut popped, &mut current);
-                        self.ranges.push(popped);
-                    }
+    pub fn add_range(&mut self, new_range: Option<Range>) {
+        if let Some(new_range) = new_range {
+            self.ranges.push(new_range);
+            self.ranges.sort();
+            let mut old_ranges = VecDeque::new();
+            loop {
+                match self.ranges.pop() {
+                    None => break,
+                    Some(popped) => old_ranges.push_front(popped),
                 }
-                None => {
-                    self.ranges.push(current);
-                    return;
+            }
+
+            let mut current = old_ranges.pop_front().unwrap();
+            loop {
+                match old_ranges.pop_front() {
+                    Some(mut popped) => {
+                        if current.overlaps_with(&popped) {
+                            current.absorb(&popped);
+                        } else {
+                            std::mem::swap(&mut popped, &mut current);
+                            self.ranges.push(popped);
+                        }
+                    }
+                    None => {
+                        self.ranges.push(current);
+                        return;
+                    }
                 }
             }
         }
@@ -192,7 +194,20 @@ impl Ranges {
     }
 
     pub fn remove_from(&mut self, other: &Range) {
-        
+        let mut replacement = Self::default();
+        for range in self.ranges.drain(..) {
+            if range.overlaps_with(other) {
+                if range.contains(other.start) {
+                    replacement.add_range(Range::new(range.start, other.start - 1));
+                }
+                if range.contains(other.end) {
+                    replacement.add_range(Range::new(other.end + 1, range.end));
+                }
+            } else {
+                replacement.add_range(Some(range));
+            }
+        }
+        std::mem::swap(&mut replacement, self);
     }
 }
 
@@ -221,9 +236,7 @@ impl BeaconMap {
     pub fn coverage(&self, d: Dim, i: isize) -> Ranges {
         let mut ranges = Ranges::default();
         for sensor in self.sensors.iter() {
-            if let Some(r) = sensor.range_for(d, i) {
-                ranges.add_range(r);
-            }
+            ranges.add_range(sensor.range_for(d, i));
         }
         for sensor in self.sensors.iter() {
             if d.get(sensor.sensor) == i {
