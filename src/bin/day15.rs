@@ -11,6 +11,8 @@ fn main() -> anyhow::Result<()> {
         let map = BeaconMap::from_file(filename)?;
         println!("Part 1: {}", map.num_no_beacon(part_1_row));
         let part_2_dimension = if filename.contains("ex") { 20 } else { 4000000 };
+        let (x, y) = map.find_beacon(part_2_dimension);
+        println!("Location: ({x}, {y})");
         Ok(())
     })
 }
@@ -167,6 +169,17 @@ impl Ranges {
     pub fn split_as_needed(&mut self, value: isize) {
         self.ranges = Range::split_as_needed(&mut self.ranges, value);
     }
+
+    pub fn uncovered_within(&self, limit: isize) -> Option<isize> {
+        let tester = Range::new(0, limit).unwrap();
+        let pertinent: Vec<Range> = self.ranges.iter().filter(|r| r.overlaps_with(&tester)).copied().collect();
+        if pertinent.len() == 2 {
+            assert_eq!(pertinent[0].end + 1, pertinent[1].start - 1);
+            Some(pertinent[0].end + 1)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone, Default, Debug)]
@@ -213,5 +226,17 @@ impl BeaconMap {
         self.coverage(Dim::Row, row).count()
     }
 
-    pub fn find_beacon(&self) -> (isize, isize) {}
+    fn find_with_gap(&self, d: Dim, limit: isize) -> isize {
+        for i in 0..=limit {
+            let r = self.coverage(d, i);
+            if let Some(found) = r.uncovered_within(limit) {
+                return found;
+            }
+        }
+        panic!("This didn't work.");
+    }
+
+    pub fn find_beacon(&self, limit: isize) -> (isize, isize) {
+        (self.find_with_gap(Dim::Col, limit), self.find_with_gap(Dim::Row, limit)   )
+    }
 }
