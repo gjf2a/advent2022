@@ -87,6 +87,10 @@ impl Range {
         }
     }
 
+    pub fn expand(&self) -> Vec<isize> {
+        (self.start..=self.end).collect()
+    }
+
     pub fn contains(&self, value: isize) -> bool {
         (self.start..=self.end).contains(&value)
     }
@@ -176,14 +180,19 @@ impl Ranges {
 
     pub fn uncovered_within(&self, limit: isize) -> Vec<isize> {
         let mut result = vec![];
-        let tester = Range::new(0, limit).unwrap();
-        let pertinent: Vec<Range> = self.ranges.iter().filter(|r| r.overlaps_with(&tester)).copied().collect();
-        for i in 0..pertinent.len() - 1 {
-            for j in (pertinent[i].end + 1)..=(pertinent[i].start - 1) {
-                result.push(j);
-            }
+        let mut uncovered = Ranges {ranges: vec![Range::new(0, limit).unwrap()]};
+        for range in self.ranges.iter() {
+            uncovered.remove_from(range);
+        }
+        for range in uncovered.ranges.iter() {
+            let mut is = range.expand();
+            result.append(&mut is);
         }
         result
+    }
+
+    pub fn remove_from(&mut self, other: &Range) {
+        
     }
 }
 
@@ -235,7 +244,9 @@ impl BeaconMap {
         let mut result = vec![];
         for i in 0..=limit {
             let r = self.coverage(d, i);
+            println!("{r:?}");
             let mut found = r.uncovered_within(limit);
+            println!("{found:?}");
             result.append(&mut found);
         }
         return result;
@@ -250,6 +261,7 @@ impl BeaconMap {
                 candidates.insert((*x, *y));
             }
         }
+        println!("{candidates:?}");
         for sensor in self.sensors.iter() {
             candidates.retain(|c| !sensor.contains(c.0, c.1));
         }
