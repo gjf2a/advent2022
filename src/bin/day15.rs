@@ -13,6 +13,8 @@ fn main() -> anyhow::Result<()> {
         let part_2_dimension = if filename.contains("ex") { 20 } else { 4000000 };
         let (x, y) = map.find_beacon(part_2_dimension);
         println!("Location: ({x}, {y})");
+        let tuning_frequency = x * 4000000 + y;
+        println!("Part 2: {}", tuning_frequency);
         Ok(())
     })
 }
@@ -184,7 +186,9 @@ impl Ranges {
         let mut result = vec![];
         let mut uncovered = Ranges {ranges: vec![Range::new(0, limit).unwrap()]};
         for range in self.ranges.iter() {
-            uncovered.remove_from(range);
+            if let Some(limited) = Range::new(max(0, range.start), min(limit, range.end)) {
+                uncovered.remove_from(&limited);
+            }
         }
         for range in uncovered.ranges.iter() {
             let mut is = range.expand();
@@ -197,7 +201,7 @@ impl Ranges {
         let mut replacement = Self::default();
         for range in self.ranges.drain(..) {
             if range.overlaps_with(other) {
-                if range.contains(other.start) {
+                if range.contains(max(0, other.start)) {
                     replacement.add_range(Range::new(range.start, other.start - 1));
                 }
                 if range.contains(other.end) {
@@ -257,10 +261,10 @@ impl BeaconMap {
         let mut result = vec![];
         for i in 0..=limit {
             let r = self.coverage(d, i);
-            println!("{r:?}");
-            let mut found = r.uncovered_within(limit);
-            println!("{found:?}");
-            result.append(&mut found);
+            let found = r.uncovered_within(limit);
+            if found.len() > 0 {
+                result.push(i);
+            }
         }
         return result;
     }
@@ -274,7 +278,6 @@ impl BeaconMap {
                 candidates.insert((*x, *y));
             }
         }
-        println!("{candidates:?}");
         for sensor in self.sensors.iter() {
             candidates.retain(|c| !sensor.contains(c.0, c.1));
         }
