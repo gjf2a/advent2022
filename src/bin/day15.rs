@@ -1,4 +1,4 @@
-use std::{collections::{BTreeSet}};
+use std::cmp::{min, max};
 
 use advent_code_lib::{all_lines, simpler_main, all_positions_from, Position};
 
@@ -15,89 +15,102 @@ fn main() -> anyhow::Result<()> {
 pub struct ManhattanNeighborhood {
     sensor: Position,
     closest_beacon: Position,
-    manhattan_radius: usize,
+    manhattan_radius: isize,
 }
 
 impl ManhattanNeighborhood {
     pub fn from(sensor: Position, closest_beacon: Position) -> Self {
-        Self {sensor, closest_beacon, manhattan_radius: sensor.manhattan_distance(closest_beacon)}
+        Self {sensor, closest_beacon, manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize}
     }
 
-    pub fn contains(&self, p: Position) -> bool {
-        self.sensor.manhattan_distance(p) <= self.manhattan_radius
-    }
-
-    pub fn num_in_row(&self, row: isize) -> usize {
-        match self.column_x_range_for(row) {
-            None => 0,
-            Some((x_start, x_end)) => {
-                let mut result = (x_end - x_start + 1) as usize;
-                if row == self.sensor.row {
-                    result -= 1;
-                }
-                if row == self.closest_beacon.row {
-                    result -= 1;
-                }
-                result
+    pub fn row_ranges(&self, row: isize) -> Vec<Range> {
+        let mut result = vec![];
+        let row_diff = (self.sensor.row - row).abs();
+        let offset = self.manhattan_radius - row_diff;
+        if let Some(range) = Range::new(self.sensor.col - offset, self.sensor.col + offset) {
+            result.push(range);
+            if row == self.sensor.row {
+                result = Range::split_as_needed(&result, self.sensor.col);
+            }
+            if row == self.closest_beacon.row {
+                result = Range::split_as_needed(&result, self.closest_beacon.col);
             }
         }
+        result
     }
+}
 
-    pub fn column_x_range_for(&self, row: isize) -> Option<(isize, isize)> {
-        let row_diff = (self.sensor.row - row).abs() as usize;
-        if self.manhattan_radius < row_diff {
-            None
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct Range {
+    start: isize,
+    end: isize
+}
+
+impl Range {
+    pub fn new(start: isize, end: isize) -> Option<Self> {
+        if start <= end {
+            Some(Self {start, end})
         } else {
-            let offset = self.manhattan_radius - row_diff;
-            Some((self.sensor.col - offset as isize, self.sensor.col + offset as isize))
+            None
         }
     }
 
-    pub fn overlaps_in_row(&self, other: Self, row: isize) -> usize { 
-        if let Some((self_x_start, self_x_end)) = self.column_x_range_for(row) {
-            if let Some((other_x_start, other_x_end)) = other.column_x_range_for(row) {
-                if self_x_start > other_x_start {
-                    other.overlaps_in_row(*self, row)
-                } else if self_x_end < other_x_start {
-                    0
-                } else if self_x_end > other_x_end {
-                    other.num_in_row(row)
-                } else {
-                    let mut result = (self_x_end - other_x_start + 1) as usize;
-                    //println!("result: {result}");
-                    let objects = [self.closest_beacon, other.closest_beacon, self.sensor, other.sensor];
-                    let objects = objects.iter().collect::<BTreeSet<_>>();
-                    for object in objects.iter() {
-                        if object.row == row && (other_x_start..=self_x_end).contains(&object.col) {
-                            //println!("beacon: {beacon}");
-                            result -= 1;
-                        }
-                    }
-                    result
+    pub fn contains(&self, value: isize) -> bool {
+        (self.start..=self.end).contains(&value)
+    }
+
+    pub fn count(&self) -> isize {
+        self.end - self.start + 1
+    }
+
+    pub fn overlaps_with(&self, other: &Range) -> bool {
+        self.contains(other.start) || self.contains(other.end) || other.contains(self.start) || other.contains(self.end) 
+    }
+
+    pub fn absorb(&mut self, other: &Range) {
+        assert!(self.overlaps_with(other));
+        self.start = min(self.start, other.start);
+        self.end = max(self.end, other.end);
+    }
+
+    pub fn split_as_needed(ranges: &Vec<Range>, value: isize) -> Vec<Range> {
+        let mut result = vec![];
+        for range in ranges.iter() {
+            if range.contains(value) {
+                if let Some(r) = Range::new(range.start, value - 1) {
+                    result.push(r);
+                }
+                if let Some(r) = Range::new(value + 1, range.end) {
+                    result.push(r);
                 }
             } else {
-                0
+                result.push(*range);
             }
-        } else {
-            0
         }
+        result
     }
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct Ranges {
-    ranges: Vec<(isize, isize)>
+    ranges: Vec<Range>
 }
 
 impl Ranges {
-    pub fn add_range(&mut self, range: (isize, isize)) {
-
+    pub fn add_range(&mut self, new_range: Range) {
+        for range in self.ranges.iter_mut() {
+            if range.overlaps_with(&new_range) {
+                range.absorb(&new_range);
+                return;
+            }
+        }
+        self.ranges.push(new_range)
     }
 
     pub fn count(&self) -> isize {
         let mut total = 0;
         for range in self.ranges.iter() {
-            total += range.1 - range.0 + 1;
+            total += range.count();
         }
         total
     }
@@ -124,24 +137,16 @@ impl BeaconMap {
         self.sensors.push(ManhattanNeighborhood::from(sensor, beacon)); 
     }
 
-    pub fn num_no_beacon(&self, row: isize) -> usize {
-        let mut big2small: Vec<ManhattanNeighborhood> = self.sensors.iter().copied().collect();
-        big2small.sort_by(|n1, n2| n2.num_in_row(row).cmp(&n1.num_in_row(row)));
-        let mut total = 0;
-        for i in 0..big2small.len() {
-            let n_i = big2small[i];
-            if n_i.column_x_range_for(row).is_some() {
-                println!("Adding {} ({:?}) {n_i:?}", n_i.num_in_row(row), n_i.column_x_range_for(row));
-                total += n_i.num_in_row(row);
-                for j in i+1..self.sensors.len() {
-                    let n_j = big2small[j];
-                    if n_i.overlaps_in_row(n_j, row) > 0 {
-                        println!("Subtracting {} ({:?}) {n_j:?}", n_i.overlaps_in_row(n_j, row), n_j.column_x_range_for(row));
-                        total -= n_i.overlaps_in_row(n_j, row);
-                    }
-                }
+    pub fn num_no_beacon(&self, row: isize) -> isize {
+        let mut ranges = Ranges::default();
+        for sensor in self.sensors.iter() {
+            for r in sensor.row_ranges(row) {
+                println!("{r:?}");
+                ranges.add_range(r);
             }
         }
-        total
+        ranges.ranges.sort();
+        println!("{ranges:?}");
+        ranges.count()
     }
 }
