@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::{collections::VecDeque, str::FromStr};
 
-use advent_code_lib::{all_lines, simpler_main};
+use advent_code_lib::{all_lines, simpler_main, keep_digits, all_nums_from};
 use anyhow::bail;
 use bare_metal_modulo::*;
 
@@ -90,14 +90,6 @@ pub struct Monkey {
     total_inspections: u128,
 }
 
-fn keep_only<F: Fn(char) -> bool>(check: F, s: String) -> String {
-    s.chars().map(|c| if check(c) { c } else { ' ' }).collect()
-}
-
-fn keep_digits(s: String) -> String {
-    keep_only(|c| c.is_digit(10), s)
-}
-
 fn one_num_from<N: FromStr>(s: String) -> N {
     keep_digits(s)
         .split_whitespace()
@@ -106,13 +98,6 @@ fn one_num_from<N: FromStr>(s: String) -> N {
         .parse::<N>()
         .ok()
         .unwrap()
-}
-
-fn all_nums_from<N: FromStr>(s: String) -> VecDeque<N> {
-    keep_digits(s)
-        .split_whitespace()
-        .map(|s| s.parse::<N>().ok().unwrap())
-        .collect()
 }
 
 impl Monkey {
