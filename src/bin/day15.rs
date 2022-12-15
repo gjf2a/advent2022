@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    collections::VecDeque,
+    collections::{VecDeque, BTreeSet},
 };
 
 use advent_code_lib::{all_lines, all_positions_from, simpler_main, Position};
@@ -53,6 +53,10 @@ impl ManhattanNeighborhood {
             closest_beacon,
             manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize,
         }
+    }
+    
+    pub fn contains(&self, x: isize, y: isize) -> bool {
+        self.sensor.manhattan_distance(Position::from((x, y))) as isize <= self.manhattan_radius
     }
 
     pub fn range_for(&self, d: Dim, i: isize) -> Option<Range> {
@@ -170,15 +174,16 @@ impl Ranges {
         self.ranges = Range::split_as_needed(&mut self.ranges, value);
     }
 
-    pub fn uncovered_within(&self, limit: isize) -> Option<isize> {
+    pub fn uncovered_within(&self, limit: isize) -> Vec<isize> {
+        let mut result = vec![];
         let tester = Range::new(0, limit).unwrap();
         let pertinent: Vec<Range> = self.ranges.iter().filter(|r| r.overlaps_with(&tester)).copied().collect();
-        if pertinent.len() == 2 {
-            assert_eq!(pertinent[0].end + 1, pertinent[1].start - 1);
-            Some(pertinent[0].end + 1)
-        } else {
-            None
+        for i in 0..pertinent.len() - 1 {
+            for j in (pertinent[i].end + 1)..=(pertinent[i].start - 1) {
+                result.push(j);
+            }
         }
+        result
     }
 }
 
@@ -226,17 +231,29 @@ impl BeaconMap {
         self.coverage(Dim::Row, row).count()
     }
 
-    fn find_with_gap(&self, d: Dim, limit: isize) -> isize {
+    fn find_with_gap(&self, d: Dim, limit: isize) -> Vec<isize> {
+        let mut result = vec![];
         for i in 0..=limit {
             let r = self.coverage(d, i);
-            if let Some(found) = r.uncovered_within(limit) {
-                return found;
-            }
+            let mut found = r.uncovered_within(limit);
+            result.append(&mut found);
         }
-        panic!("This didn't work.");
+        return result;
     }
 
     pub fn find_beacon(&self, limit: isize) -> (isize, isize) {
-        (self.find_with_gap(Dim::Col, limit), self.find_with_gap(Dim::Row, limit)   )
+        let xs = self.find_with_gap(Dim::Col, limit);
+        let ys = self.find_with_gap(Dim::Row, limit);
+        let mut candidates = BTreeSet::new();
+        for x in xs.iter() {
+            for y in ys.iter() {
+                candidates.insert((*x, *y));
+            }
+        }
+        for sensor in self.sensors.iter() {
+            candidates.retain(|c| !sensor.contains(c.0, c.1));
+        }
+        assert_eq!(1, candidates.len());
+        candidates.iter().next().copied().unwrap()
     }
 }
