@@ -1,4 +1,4 @@
-use std::cmp::{min, max};
+use std::{cmp::{min, max}, collections::VecDeque};
 
 use advent_code_lib::{all_lines, simpler_main, all_positions_from, Position};
 
@@ -23,20 +23,10 @@ impl ManhattanNeighborhood {
         Self {sensor, closest_beacon, manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize}
     }
 
-    pub fn row_ranges(&self, row: isize) -> Vec<Range> {
-        let mut result = vec![];
+    pub fn row_range(&self, row: isize) -> Option<Range> {
         let row_diff = (self.sensor.row - row).abs();
         let offset = self.manhattan_radius - row_diff;
-        if let Some(range) = Range::new(self.sensor.col - offset, self.sensor.col + offset) {
-            result.push(range);
-            if row == self.sensor.row {
-                result = Range::split_as_needed(&result, self.sensor.col);
-            }
-            if row == self.closest_beacon.row {
-                result = Range::split_as_needed(&result, self.closest_beacon.col);
-            }
-        }
-        result
+        Range::new(self.sensor.col - offset, self.sensor.col + offset)
     }
 }
 
@@ -98,13 +88,30 @@ pub struct Ranges {
 
 impl Ranges {
     pub fn add_range(&mut self, new_range: Range) {
-        for range in self.ranges.iter_mut() {
-            if range.overlaps_with(&new_range) {
-                range.absorb(&new_range);
-                return;
+        self.ranges.push(new_range);
+        self.ranges.sort();
+        let mut old_ranges = VecDeque::new();
+        loop {
+            match self.ranges.pop() {
+                None => break,
+                Some(popped) => old_ranges.push_front(popped),
+            }    
+        }
+
+        let mut current = old_ranges.pop_front().unwrap();
+        loop {
+            match old_ranges.pop_front() {
+                Some(mut popped) => {
+                    if current.overlaps_with(&popped) {
+                        current.absorb(&popped);
+                    } else {
+                        std::mem::swap(&mut popped, &mut current);
+                        self.ranges.push(popped);
+                    }
+                },
+                None => {self.ranges.push(current); return;}
             }
         }
-        self.ranges.push(new_range)
     }
 
     pub fn count(&self) -> isize {
@@ -113,6 +120,10 @@ impl Ranges {
             total += range.count();
         }
         total
+    }
+
+    pub fn split_as_needed(&mut self, value: isize) {
+        self.ranges = Range::split_as_needed(&mut self.ranges, value);
     }
 }
 
@@ -140,13 +151,18 @@ impl BeaconMap {
     pub fn num_no_beacon(&self, row: isize) -> isize {
         let mut ranges = Ranges::default();
         for sensor in self.sensors.iter() {
-            for r in sensor.row_ranges(row) {
-                println!("{r:?}");
+            if let Some(r) = sensor.row_range(row) {
                 ranges.add_range(r);
             }
         }
-        ranges.ranges.sort();
-        println!("{ranges:?}");
+        for sensor in self.sensors.iter() {
+            if sensor.sensor.row == row {
+                ranges.split_as_needed(sensor.sensor.col);
+            }
+            if sensor.closest_beacon.row == row {
+                ranges.split_as_needed(sensor.closest_beacon.col);
+            }
+        }
         ranges.count()
     }
 }
