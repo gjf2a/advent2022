@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::{collections::VecDeque, str::FromStr};
 
-use advent_code_lib::{all_lines, simpler_main, keep_digits, all_nums_from};
+use advent_code_lib::{all_lines, all_nums_from, keep_digits, simpler_main};
 use anyhow::bail;
 use bare_metal_modulo::*;
 

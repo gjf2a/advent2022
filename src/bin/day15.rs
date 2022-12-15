@@ -1,20 +1,24 @@
-use std::{cmp::{min, max}, collections::VecDeque};
+use std::{
+    cmp::{max, min},
+    collections::VecDeque,
+};
 
-use advent_code_lib::{all_lines, simpler_main, all_positions_from, Position};
+use advent_code_lib::{all_lines, all_positions_from, simpler_main, Position};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        let part_1_row = if filename.contains("ex") {10} else {2000000};
+        let part_1_row = if filename.contains("ex") { 10 } else { 2000000 };
         let map = BeaconMap::from_file(filename)?;
         println!("Part 1: {}", map.num_no_beacon(part_1_row));
-        let part_2_dimension = if filename.contains("ex") {20} else {4000000};
+        let part_2_dimension = if filename.contains("ex") { 20 } else { 4000000 };
         Ok(())
     })
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Dim {
-    Col, Row
+    Col,
+    Row,
 }
 
 impl Dim {
@@ -42,7 +46,11 @@ pub struct ManhattanNeighborhood {
 
 impl ManhattanNeighborhood {
     pub fn from(sensor: Position, closest_beacon: Position) -> Self {
-        Self {sensor, closest_beacon, manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize}
+        Self {
+            sensor,
+            closest_beacon,
+            manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize,
+        }
     }
 
     pub fn range_for(&self, d: Dim, i: isize) -> Option<Range> {
@@ -61,13 +69,13 @@ pub struct ManhattanRange {
 #[derive(Default, Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Range {
     start: isize,
-    end: isize
+    end: isize,
 }
 
 impl Range {
     pub fn new(start: isize, end: isize) -> Option<Self> {
         if start <= end {
-            Some(Self {start, end})
+            Some(Self { start, end })
         } else {
             None
         }
@@ -82,7 +90,10 @@ impl Range {
     }
 
     pub fn overlaps_with(&self, other: &Range) -> bool {
-        self.contains(other.start) || self.contains(other.end) || other.contains(self.start) || other.contains(self.end) 
+        self.contains(other.start)
+            || self.contains(other.end)
+            || other.contains(self.start)
+            || other.contains(self.end)
     }
 
     pub fn absorb(&mut self, other: &Range) {
@@ -111,7 +122,7 @@ impl Range {
 
 #[derive(Default, Clone, Debug)]
 pub struct Ranges {
-    ranges: Vec<Range>
+    ranges: Vec<Range>,
 }
 
 impl Ranges {
@@ -123,7 +134,7 @@ impl Ranges {
             match self.ranges.pop() {
                 None => break,
                 Some(popped) => old_ranges.push_front(popped),
-            }    
+            }
         }
 
         let mut current = old_ranges.pop_front().unwrap();
@@ -136,8 +147,11 @@ impl Ranges {
                         std::mem::swap(&mut popped, &mut current);
                         self.ranges.push(popped);
                     }
-                },
-                None => {self.ranges.push(current); return;}
+                }
+                None => {
+                    self.ranges.push(current);
+                    return;
+                }
             }
         }
     }
@@ -173,7 +187,8 @@ impl BeaconMap {
     }
 
     fn add_sensor_beacon(&mut self, sensor: Position, beacon: Position) {
-        self.sensors.push(ManhattanNeighborhood::from(sensor, beacon)); 
+        self.sensors
+            .push(ManhattanNeighborhood::from(sensor, beacon));
     }
 
     pub fn coverage(&self, d: Dim, i: isize) -> Ranges {
@@ -198,5 +213,5 @@ impl BeaconMap {
         self.coverage(Dim::Row, row).count()
     }
 
-
+    pub fn find_beacon(&self) -> (isize, isize) {}
 }
