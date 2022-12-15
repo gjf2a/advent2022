@@ -1,19 +1,21 @@
 use std::{
     cmp::{max, min},
-    collections::{VecDeque, BTreeSet},
+    collections::{BTreeSet, VecDeque},
 };
 
 use advent_code_lib::{all_lines, all_positions_from, simpler_main, Position};
+
+const PART_2: isize = 4000000;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let part_1_row = if filename.contains("ex") { 10 } else { 2000000 };
         let map = BeaconMap::from_file(filename)?;
         println!("Part 1: {}", map.num_no_beacon(part_1_row));
-        let part_2_dimension = if filename.contains("ex") { 20 } else { 4000000 };
+        let part_2_dimension = if filename.contains("ex") { 20 } else { PART_2 };
         let (x, y) = map.find_beacon(part_2_dimension);
         println!("Location: ({x}, {y})");
-        let tuning_frequency = x * 4000000 + y;
+        let tuning_frequency = x * PART_2 + y;
         println!("Part 2: {}", tuning_frequency);
         Ok(())
     })
@@ -56,7 +58,7 @@ impl ManhattanNeighborhood {
             manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize,
         }
     }
-    
+
     pub fn contains(&self, x: isize, y: isize) -> bool {
         self.sensor.manhattan_distance(Position::from((x, y))) as isize <= self.manhattan_radius
     }
@@ -184,7 +186,9 @@ impl Ranges {
 
     pub fn uncovered_within(&self, limit: isize) -> Vec<isize> {
         let mut result = vec![];
-        let mut uncovered = Ranges {ranges: vec![Range::new(0, limit).unwrap()]};
+        let mut uncovered = Ranges {
+            ranges: vec![Range::new(0, limit).unwrap()],
+        };
         for range in self.ranges.iter() {
             if let Some(limited) = Range::new(max(0, range.start), min(limit, range.end)) {
                 uncovered.remove_from(&limited);
