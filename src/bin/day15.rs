@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap, BTreeSet}};
+use std::{collections::{BTreeSet}};
 
 use advent_code_lib::{all_lines, simpler_main, all_positions_from, Position};
 
@@ -86,9 +86,7 @@ impl ManhattanNeighborhood {
 
 #[derive(Clone, Default, Debug)]
 pub struct BeaconMap {
-    sensors: Vec<Position>,
-    beacons: Vec<Position>,
-    neighborhoods: BTreeMap<Position, ManhattanNeighborhood>,
+    sensors: Vec<ManhattanNeighborhood>,
 }
 
 impl BeaconMap {
@@ -104,22 +102,22 @@ impl BeaconMap {
     }
 
     fn add_sensor_beacon(&mut self, sensor: Position, beacon: Position) {
-        self.sensors.push(sensor);
-        self.beacons.push(beacon);
-        self.neighborhoods.insert(sensor, ManhattanNeighborhood::from(sensor, beacon)); 
+        self.sensors.push(ManhattanNeighborhood::from(sensor, beacon)); 
     }
 
     pub fn num_no_beacon(&self, row: isize) -> usize {
+        let mut big2small: Vec<ManhattanNeighborhood> = self.sensors.iter().copied().collect();
+        big2small.sort_by(|n1, n2| n2.num_in_row(row).cmp(&n1.num_in_row(row)));
         let mut total = 0;
-        for i in 0..self.sensors.len() {
-            let n_i = self.neighborhoods.get(&self.sensors[i]).unwrap();
+        for i in 0..big2small.len() {
+            let n_i = big2small[i];
             if n_i.column_x_range_for(row).is_some() {
-                //println!("Adding {} ({:?}) {n_i:?}", n_i.num_in_row(row), n_i.column_x_range_for(row));
+                println!("Adding {} ({:?}) {n_i:?}", n_i.num_in_row(row), n_i.column_x_range_for(row));
                 total += n_i.num_in_row(row);
                 for j in i+1..self.sensors.len() {
-                    let n_j = *self.neighborhoods.get(&self.sensors[j]).unwrap();
+                    let n_j = big2small[j];
                     if n_i.overlaps_in_row(n_j, row) > 0 {
-                        //println!("Subtracting {} ({:?}) {n_j:?}", n_i.overlaps_in_row(n_j, row), n_j.column_x_range_for(row));
+                        println!("Subtracting {} ({:?}) {n_j:?}", n_i.overlaps_in_row(n_j, row), n_j.column_x_range_for(row));
                         total -= n_i.overlaps_in_row(n_j, row);
                     }
                 }
