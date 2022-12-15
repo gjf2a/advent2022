@@ -7,8 +7,30 @@ fn main() -> anyhow::Result<()> {
         let part_1_row = if filename.contains("ex") {10} else {2000000};
         let map = BeaconMap::from_file(filename)?;
         println!("Part 1: {}", map.num_no_beacon(part_1_row));
+        let part_2_dimension = if filename.contains("ex") {20} else {4000000};
         Ok(())
     })
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Dim {
+    Col, Row
+}
+
+impl Dim {
+    pub fn inv(&self, p: Position) -> isize {
+        match self {
+            Self::Col => Self::Row.get(p),
+            Self::Row => Self::Col.get(p),
+        }
+    }
+
+    pub fn get(&self, p: Position) -> isize {
+        match self {
+            Self::Col => p.col,
+            Self::Row => p.row,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -23,11 +45,17 @@ impl ManhattanNeighborhood {
         Self {sensor, closest_beacon, manhattan_radius: sensor.manhattan_distance(closest_beacon) as isize}
     }
 
-    pub fn row_range(&self, row: isize) -> Option<Range> {
-        let row_diff = (self.sensor.row - row).abs();
-        let offset = self.manhattan_radius - row_diff;
-        Range::new(self.sensor.col - offset, self.sensor.col + offset)
+    pub fn range_for(&self, d: Dim, i: isize) -> Option<Range> {
+        let diff = (d.get(self.sensor) - i).abs();
+        let offset = self.manhattan_radius - diff;
+        Range::new(d.inv(self.sensor) - offset, d.inv(self.sensor) + offset)
     }
+}
+
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct ManhattanRange {
+    column: Range,
+    row: Range,
 }
 
 #[derive(Default, Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -148,21 +176,27 @@ impl BeaconMap {
         self.sensors.push(ManhattanNeighborhood::from(sensor, beacon)); 
     }
 
-    pub fn num_no_beacon(&self, row: isize) -> isize {
+    pub fn coverage(&self, d: Dim, i: isize) -> Ranges {
         let mut ranges = Ranges::default();
         for sensor in self.sensors.iter() {
-            if let Some(r) = sensor.row_range(row) {
+            if let Some(r) = sensor.range_for(d, i) {
                 ranges.add_range(r);
             }
         }
         for sensor in self.sensors.iter() {
-            if sensor.sensor.row == row {
+            if d.get(sensor.sensor) == i {
                 ranges.split_as_needed(sensor.sensor.col);
             }
-            if sensor.closest_beacon.row == row {
+            if d.get(sensor.closest_beacon) == i {
                 ranges.split_as_needed(sensor.closest_beacon.col);
             }
         }
-        ranges.count()
+        ranges
     }
+
+    pub fn num_no_beacon(&self, row: isize) -> isize {
+        self.coverage(Dim::Row, row).count()
+    }
+
+
 }
