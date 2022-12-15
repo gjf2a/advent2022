@@ -65,10 +65,10 @@ impl ManhattanNeighborhood {
                 } else {
                     let mut result = (self_x_end - other_x_start + 1) as usize;
                     //println!("result: {result}");
-                    let beacons = [self.closest_beacon, other.closest_beacon];
-                    let beacons = beacons.iter().collect::<BTreeSet<_>>();
-                    for beacon in beacons.iter() {
-                        if beacon.row == row && (other_x_start..=self_x_end).contains(&beacon.col) {
+                    let objects = [self.closest_beacon, other.closest_beacon, self.sensor, other.sensor];
+                    let objects = objects.iter().collect::<BTreeSet<_>>();
+                    for object in objects.iter() {
+                        if object.row == row && (other_x_start..=self_x_end).contains(&object.col) {
                             //println!("beacon: {beacon}");
                             result -= 1;
                         }
