@@ -84,6 +84,25 @@ impl ManhattanNeighborhood {
     }
 }
 
+#[derive(Default, Clone, Debug)]
+pub struct Ranges {
+    ranges: Vec<(isize, isize)>
+}
+
+impl Ranges {
+    pub fn add_range(&mut self, range: (isize, isize)) {
+
+    }
+
+    pub fn count(&self) -> isize {
+        let mut total = 0;
+        for range in self.ranges.iter() {
+            total += range.1 - range.0 + 1;
+        }
+        total
+    }
+}
+
 #[derive(Clone, Default, Debug)]
 pub struct BeaconMap {
     sensors: Vec<ManhattanNeighborhood>,
