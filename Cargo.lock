@@ -14,8 +14,8 @@ dependencies = [
 
 [[package]]
 name = "advent_code_lib"
-version = "0.16.4"
-source = "git+https://github.com/gjf2a/advent_code_lib#780a967d7652a85a97d0b1d1449e46abc7d4f1d2"
+version = "0.17.2"
+source = "git+https://github.com/gjf2a/advent_code_lib#4d57671629f56d07731a2d6fc12c2c6aaf60f484"
 dependencies = [
  "anyhow",
  "bare_metal_modulo",
@@ -91,9 +91,9 @@ dependencies = [
 
 [[package]]
 name = "hash_histogram"
-version = "0.6.2"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3eb70de6d3697e5acedacddb803bc75163f938c94a9b17a9e68e1cc98fe671c"
+checksum = "70c1ffce862dbc8ca145a7c0b8a8d463fcc33b284ee6e97d4ddfd6c1f82aed25"
 dependencies = [
  "serde",
  "serde_json",
