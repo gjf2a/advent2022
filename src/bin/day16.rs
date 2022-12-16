@@ -18,15 +18,11 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
     let start = PressureNode::start_at(tunnels.start.as_str(), 30);
     queue.enqueue(&start);
 
-    search(queue, |s, q| {
+    let result = search(queue, |s, q| {
         let options = s.successors(tunnels);
-        let potential: usize = options
-            .iter()
-            .map(|opt| tunnels.pressure_for(opt) * s.minutes_left)
-            .sum();
         //let potential = potential(tunnels, s.minutes_left, &options);
-        println!("{best} {s:?} {potential}");
-        if s.total_pressure + potential >= best {
+        //println!("{best} {s:?} {potential}");
+        //if s.total_pressure + potential >= best {
             for successor in options.iter() {
                 if let Some(node) = s.successor(successor.as_str(), tunnels) {
                     if node.total_pressure > best {
@@ -35,10 +31,20 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
                     q.enqueue(&node);
                 }
             }
-        }
+        //}
         ContinueSearch::Yes
     });
+    println!("enqueued: {} (dequeued {})", result.enqueued(), result.dequeued());
     best
+}
+
+fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
+    let mut values: Vec<usize> = remaining_nodes.iter().map(|n| tunnels.pressure_for(n.as_str())).collect();
+    values.sort_by(|a, b| b.cmp(a));
+    while values.len() > minutes_left {
+        values.pop();
+    }
+    values.iter().sum::<usize>() * minutes_left
 }
 
 // Neat idea. Didn't work - pruned too aggressively.
@@ -94,7 +100,7 @@ impl PressureNode {
     fn successors(&self, tunnels: &TunnelGraph) -> Vec<String> {
         tunnels
             .valves()
-            .filter(|valve| !self.opened.contains_key(*valve))
+            .filter(|valve| !self.opened.contains_key(*valve) && tunnels.pressure_for(*valve) > 0)
             .cloned()
             .collect()
     }
