@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BinaryHeap};
+use std::{collections::{BTreeMap, BinaryHeap}, fmt::Display};
 
 use advent_code_lib::{
     all_lines, breadth_first_search, search, simpler_main, ContinueSearch, SearchQueue,
@@ -7,6 +7,7 @@ use advent_code_lib::{
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let tunnels = TunnelGraph::from_file(filename)?;
+        println!("{tunnels}");
         println!("Part 1: {}", part1(&tunnels));
         Ok(())
     })
@@ -15,14 +16,14 @@ fn main() -> anyhow::Result<()> {
 pub fn part1(tunnels: &TunnelGraph) -> usize {
     let mut best = 0;
     let mut queue = PressureQueue::new();
-    let start = PressureNode::start_at(tunnels.start.as_str(), 30);
+    let start = PressureNode::start_at("AA", 30);
     queue.enqueue(&start);
 
     let result = search(queue, |s, q| {
         let options = s.successors(tunnels);
-        //let potential = potential(tunnels, s.minutes_left, &options);
-        //println!("{best} {s:?} {potential}");
-        //if s.total_pressure + potential >= best {
+        let potential = potential(tunnels, s.minutes_left, &options);
+        if s.total_pressure + potential >= best {
+            //println!("{best} {s:?} {potential}");
             for successor in options.iter() {
                 if let Some(node) = s.successor(successor.as_str(), tunnels) {
                     if node.total_pressure > best {
@@ -31,7 +32,7 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
                     q.enqueue(&node);
                 }
             }
-        //}
+        }
         ContinueSearch::Yes
     });
     println!("enqueued: {} (dequeued {})", result.enqueued(), result.dequeued());
@@ -47,7 +48,7 @@ fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<S
     values.iter().sum::<usize>() * minutes_left
 }
 
-// Neat idea. Didn't work - pruned too aggressively.
+// Neat idea. It may prune too aggressively. Not sure though.
 /*
 fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
     let mut values: Vec<usize> = remaining_nodes.iter().map(|n| tunnels.pressure_for(n.as_str())).collect();
@@ -141,10 +142,19 @@ impl SearchQueue<PressureNode> for PressureQueue {
 
 #[derive(Default, Clone, Debug)]
 pub struct TunnelGraph {
-    start: String,
     valve2flow: BTreeMap<String, usize>,
     valve2tunnels: BTreeMap<String, Vec<String>>,
     valve_activation_times: BTreeMap<String, BTreeMap<String, usize>>,
+}
+
+impl Display for TunnelGraph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for valve in self.valves() {
+            let out = format!("{:?}", self.valve2tunnels.get(valve).unwrap()).replace("[", "").replace("]", "").replace('"', "");
+            write!(f, "Valve {} has flow rate={}; tunnels lead to valves {}\n", valve, self.pressure_for(valve), out)?
+        }
+        Ok(())
+    }
 }
 
 fn parse_rate(rate: &str) -> usize {
@@ -165,9 +175,6 @@ impl TunnelGraph {
         for line in all_lines(filename)? {
             let mut parts = line.split_whitespace();
             let name = parts.by_ref().skip(1).next().unwrap();
-            if result.start.len() == 0 {
-                result.start = name.to_string();
-            }
             let rate = parse_rate(parts.by_ref().skip(2).next().unwrap());
             let tunnels = parts.by_ref().skip(4).map(|s| s[..2].to_string()).collect();
             result.valve2flow.insert(name.to_string(), rate);
