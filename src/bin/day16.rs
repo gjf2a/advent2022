@@ -28,10 +28,12 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
         if s.total_pressure + potential >= best {
             for successor in options.iter() {
                 if let Some(node) = s.successor(successor.as_str(), tunnels) {
-                    if best_at_times.best_so_far(&node) && node.total_pressure > best {
+                    if node.total_pressure > best {
                         best = node.total_pressure;
                     }
-                    q.enqueue(&node);
+                    if best_at_times.best_so_far(&node) {
+                        q.enqueue(&node);
+                    }
                 }
             }
         }
