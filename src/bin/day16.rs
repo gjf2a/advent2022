@@ -20,10 +20,12 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
 
     search(queue, |s, q| {
         let options = s.successors(tunnels);
-        let potential: usize = options
+        /*let potential: usize = options
             .iter()
             .map(|opt| tunnels.pressure_for(opt) * s.minutes_left)
-            .sum();
+            .sum();*/
+        let potential = potential(tunnels, s.minutes_left, &options);
+        println!("{best} {s:?} {potential}");
         if s.total_pressure + potential >= best {
             for successor in options.iter() {
                 if let Some(node) = s.successor(successor.as_str(), tunnels) {
@@ -37,6 +39,15 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
         ContinueSearch::Yes
     });
     best
+}
+
+fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
+    let mut values: Vec<usize> = remaining_nodes.iter().map(|n| tunnels.pressure_for(n.as_str())).collect();
+    values.sort_by(|a, b| b.cmp(a));
+    while values.len() > minutes_left {
+        values.pop();
+    }
+    values.iter().rev().enumerate().map(|(i, p)| (i + 1) * *p).sum()
 }
 
 #[derive(Default, Clone, Eq, PartialEq, Ord, Debug)]
