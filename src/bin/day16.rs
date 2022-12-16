@@ -15,7 +15,6 @@ fn main() -> anyhow::Result<()> {
 pub fn part1(tunnels: &TunnelGraph) -> usize {
     let mut best = 0;
     let mut queue = PressureQueue::new();
-    let mut best_at_times = BestPreviousVisits::default();
     let start = PressureNode::start_at(tunnels.start.as_str(), 30);
     queue.enqueue(&start);
 
@@ -31,49 +30,13 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
                     if node.total_pressure > best {
                         best = node.total_pressure;
                     }
-                    if best_at_times.best_so_far(&node) {
-                        q.enqueue(&node);
-                    }
+                    q.enqueue(&node);
                 }
             }
         }
         ContinueSearch::Yes
     });
     best
-}
-
-#[derive(Default, Clone)]
-struct BestPreviousVisits {
-    valve2left2pressure: BTreeMap<String,BTreeMap<usize,usize>>
-}
-
-impl BestPreviousVisits {
-    fn best_so_far(&mut self, node: &PressureNode) -> bool {
-        match self.valve2left2pressure.get_mut(node.at.as_str()) {
-            Some(left2pressure) => {
-                match left2pressure.get_mut(&node.minutes_left) {
-                    Some(pressure) => {
-                        if node.total_pressure > *pressure {
-                            *pressure = node.total_pressure;
-                            true
-                        } else {
-                            false
-                        }
-                    },
-                    None => {
-                        left2pressure.insert(node.minutes_left, node.total_pressure);
-                        true
-                    }
-                }
-            },
-            None => {
-                let mut map = BTreeMap::new();
-                map.insert(node.minutes_left, node.total_pressure);
-                self.valve2left2pressure.insert(node.at.clone(), map);
-                true
-            }
-        }
-    }
 }
 
 #[derive(Default, Clone, Eq, PartialEq, Ord, Debug)]
