@@ -1,5 +1,5 @@
 use advent_code_lib::{all_lines, simpler_main, Position};
-use enum_iterator::Sequence;
+use enum_iterator::{Sequence, all};
 use std::{
     cmp::{max, min},
     fmt::Display,
@@ -8,7 +8,21 @@ use std::{
 const WELL_WIDTH: usize = 7;
 
 fn main() -> anyhow::Result<()> {
-    simpler_main(|filename| Ok(()))
+    simpler_main(|filename| {
+        println!("Part 1: {}", part1(filename)?);
+        Ok(())
+    })
+}
+
+pub fn part1(filename: &str) -> anyhow::Result<isize> {
+    let move_line = read_moves(filename).unwrap();
+    let mut moves = moves_from(move_line.as_str());
+    let mut w = Well::<WELL_WIDTH>::default();
+    let mut tetrominoes = all::<Tetromino>().cycle();
+    for _ in 0..2022 {
+        w.drop_into(tetrominoes.next().unwrap(), &mut moves);
+    }
+    Ok(w.height())
 }
 
 pub fn read_moves(filename: &str) -> anyhow::Result<String> {
@@ -16,7 +30,7 @@ pub fn read_moves(filename: &str) -> anyhow::Result<String> {
 }
 
 pub fn moves_from(s: &str) -> impl Iterator<Item = Move> + '_ {
-    s.chars().map(|c| c.into())
+    s.chars().map(|c| c.into()).cycle()
 }
 
 #[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
