@@ -1,4 +1,5 @@
 use advent_code_lib::{all_lines, simpler_main, Position};
+use bare_metal_modulo::*;
 use enum_iterator::{all, Sequence};
 use std::{
     cmp::{max, min},
@@ -21,31 +22,78 @@ const PART_2_ITERATIONS: isize = 1000000000000;
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
-        println!("Iterations/Height at repeat: {:?}", iterations_height_at_repeat(filename)?);
-        println!("Part 2: {}", part2(filename)?);
+        //println!("Iterations/Height at repeat: {:?}", iterations_height_at_repeat(filename)?);
+        //println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
 
 pub fn part1(filename: &str) -> anyhow::Result<isize> {
-    limit_solver(filename, PART_1_ITERATIONS)
+    Tetris::limit_solver(filename, PART_1_ITERATIONS)
 }
 
-pub fn part2(filename: &str) -> anyhow::Result<isize> {
-    repeat_solver(filename, PART_2_ITERATIONS)
+//pub fn part2(filename: &str) -> anyhow::Result<isize> {
+//    repeat_solver(filename, PART_2_ITERATIONS)
+//}
+
+pub struct Tracker<T> {
+    items: Vec<T>,
+    track: ModNum<usize>,
 }
 
-pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
-    let move_line = read_moves(filename).unwrap();
-    let mut moves = moves_from(move_line.as_str());
-    let mut w = Well::<WELL_WIDTH>::default();
-    let mut tetrominoes = all::<Tetromino>().cycle();
-    for _ in 0..iterations {
-        w.drop_into(tetrominoes.next().unwrap(), &mut moves);
+impl <T:Copy> Tracker<T> {
+    pub fn new<I: Iterator<Item=T>>(items: I) -> Self {
+        let items: Vec<T> = items.collect();
+        let track = ModNum::new(0, items.len());
+        Self {items, track}
     }
-    Ok(w.height())
-} 
 
+    pub fn get(&self) -> T {
+        self.items[self.track.a()]
+    }
+
+    pub fn advance(&mut self) {
+        self.track += 1;
+    }
+}
+
+pub struct Tetris {
+    well: Well,
+    moves: Tracker<Move>,
+    pieces: Tracker<Tetromino>,
+}
+
+impl Tetris {
+    pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
+        let mut tetris = Self::from_file(filename)?;
+        for _ in 0..iterations {
+            tetris.drop_next();
+        }
+        Ok(tetris.height())
+    }
+
+    pub fn height(&self) -> isize {
+        self.well.height()
+    }
+
+    pub fn from_file(filename: &str) -> anyhow::Result<Self> {
+        let move_line = read_moves(filename)?;
+        let moves = Tracker::new(move_line.chars().map(|c| c.into()));
+        let pieces = Tracker::new(all::<Tetromino>());
+        Ok(Self {
+            well: Well::default(),
+            moves,
+            pieces,
+        })
+    }
+
+    pub fn drop_next(&mut self) {
+        self.well.drop_into(self.pieces.get(), &mut self.moves);
+        self.pieces.advance();
+    }
+}
+
+/* 
 pub fn repeat_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
     let (repeat_iterations, unit_height) = iterations_height_at_repeat(filename)?;
     let repetitions = iterations / repeat_iterations;
@@ -56,22 +104,22 @@ pub fn repeat_solver(filename: &str, iterations: isize) -> anyhow::Result<isize>
 pub fn iterations_height_at_repeat(filename: &str) -> anyhow::Result<(isize,isize)> {
     let move_line = read_moves(filename).unwrap();
     let mut moves = moves_from(move_line.as_str());
-    let mut w = Well::<WELL_WIDTH>::default();
+    let mut w = Well::default();
     let mut tetrominoes = all::<Tetromino>().cycle();
     let mut i = 0;
-    while i <= 1 || w.top_row() != TOP_ROW_REPEATS_AFTER {
+    while !w.repeats_initial_state() {
         w.drop_into(tetrominoes.next().unwrap(), &mut moves);
         i += 1;
     }
     Ok((i - 1, w.height() - 1))
 }
-
+*/
 pub fn read_moves(filename: &str) -> anyhow::Result<String> {
     Ok(all_lines(filename)?.next().unwrap())
 }
 
 pub fn moves_from(s: &str) -> impl Iterator<Item = Move> + '_ {
-    s.chars().map(|c| c.into()).cycle()
+    s.chars().map(|c| c.into())
 }
 
 #[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
@@ -92,11 +140,11 @@ impl Display for WellCell {
 }
 
 #[derive(Default)]
-pub struct Well<const W: usize> {
-    cells: Vec<[WellCell; W]>,
+pub struct Well {
+    cells: Vec<[WellCell; WELL_WIDTH]>,
 }
 
-impl<const W: usize> Display for Well<W> {
+impl Display for Well {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in (0..self.cells.len()).rev() {
             write!(f, "|")?;
@@ -106,14 +154,14 @@ impl<const W: usize> Display for Well<W> {
             writeln!(f, "|")?;
         }
         write!(f, "+")?;
-        for _ in 0..W {
+        for _ in 0..WELL_WIDTH {
             write!(f, "-")?;
         }
         writeln!(f, "+")
     }
 }
 
-impl<const W: usize> Well<W> {
+impl Well {
     pub fn at(&self, p: Position) -> WellCell {
         if p.row >= self.height() {
             WellCell::Air
@@ -122,12 +170,14 @@ impl<const W: usize> Well<W> {
         }
     }
 
-    pub fn top_row(&self) -> [WellCell; W] {
-        self.cells.last().cloned().unwrap_or([WellCell::Air; W])
-    }
-
-    pub fn top_row_flat(&self) -> bool {
-        self.cells.last().map(|top_row| top_row.iter().all(|c| *c == WellCell::Rock)).unwrap_or(false)
+    pub fn repeats_initial_state(&self) -> bool {
+        if self.height() < 2 {
+            false
+        } else {
+            let last = (self.height() - 1) as usize;
+            let mut need_rocks = TOP_ROW_REPEATS_AFTER.iter().enumerate().filter(|(_, cell)| **cell == WellCell::Air).map(|(i,_)| i);
+            self.cells[last] == TOP_ROW_REPEATS_AFTER && need_rocks.all(|i| self.cells[last - 1][i] == WellCell::Rock)
+        }
     }
 
     pub fn height(&self) -> isize {
@@ -146,15 +196,16 @@ impl<const W: usize> Well<W> {
                 })
     }
 
-    pub fn drop_into<I: Iterator<Item = Move>>(&mut self, t: Tetromino, moves: &mut I) {
+    pub fn drop_into(&mut self, t: Tetromino, moves: &mut Tracker<Move>) {
         let mut tp = Position {
             col: 2,
             row: self.height() + 3,
         };
         loop {
-            if let Some(new_tp) = self.push(t, tp, moves.next().unwrap()) {
+            if let Some(new_tp) = self.push(t, tp, moves.get()) {
                 tp = new_tp;
             }
+            moves.advance();
             if self.contacts(t, tp - Position { row: 1, col: 0 }) {
                 break;
             }
@@ -162,18 +213,27 @@ impl<const W: usize> Well<W> {
         }
         for rock in t.positions(tp) {
             while rock.row >= self.height() {
-                self.cells.push([WellCell::Air; W]);
+                self.cells.push([WellCell::Air; WELL_WIDTH]);
             }
             self.cells[rock.row as usize][rock.col as usize] = WellCell::Rock;
         }
     }
 
     fn push(&self, t: Tetromino, tp: Position, m: Move) -> Option<Position> {
-        let new_tp = m.push::<W>(tp, t.width());
+        let new_tp = m.push(tp, t.width());
         if t.positions(new_tp).any(|p| self.at(p) == WellCell::Rock) {
             None
         } else {
             Some(new_tp)
+        }
+    }
+
+    pub fn add_row(&mut self, chars: &str) {
+        self.cells.push([WellCell::Air; WELL_WIDTH]);
+        for (i, c) in chars.chars().enumerate() {
+            if c == '#' {
+                self.cells.last_mut().unwrap()[i] = WellCell::Rock;
+            }
         }
     }
 }
@@ -214,7 +274,7 @@ pub enum Move {
 }
 
 impl Move {
-    pub fn push<const W: usize>(&self, p: Position, width: isize) -> Position {
+    pub fn push(&self, p: Position, width: isize) -> Position {
         match self {
             Self::Left => Position {
                 row: p.row,
@@ -222,7 +282,7 @@ impl Move {
             },
             Self::Right => Position {
                 row: p.row,
-                col: min(W as isize - width, p.col + 1),
+                col: min(WELL_WIDTH as isize - width, p.col + 1),
             },
         }
     }
@@ -252,11 +312,11 @@ impl Display for Move {
 mod tests {
     use enum_iterator::all;
 
-    use crate::{moves_from, read_moves, Tetromino, Well, WELL_WIDTH};
+    use crate::{moves_from, read_moves, Tetromino, Well, Tracker};
 
     #[test]
     fn test_empty() {
-        let w = Well::<WELL_WIDTH>::default();
+        let w = Well::default();
         assert_eq!("+-------+\n", format!("{w}"));
     }
 
@@ -274,11 +334,22 @@ mod tests {
     #[test]
     fn test_drop() {
         let move_line = read_moves("ex/day17.txt").unwrap();
-        let mut moves = moves_from(move_line.as_str());
-        let mut w = Well::<WELL_WIDTH>::default();
+        let mut moves = Tracker::new(moves_from(move_line.as_str()));
+        let mut w = Well::default();
         for t in all::<Tetromino>() {
             w.drop_into(t, &mut moves);
         }
         assert_eq!(format!("{w}"), EX_1);
+    }
+
+    #[test]
+    fn test_repeat_test() {
+        let mut w = Well::default();
+        for row in ["..####.", "..####.", "##....#", "..####.", "###...#", "..####.", "##.#..#", "..####."] {
+            w.add_row(row);
+            print!("{w}");
+            println!("{}", w.repeats_initial_state());
+            println!();
+        }
     }
 }
