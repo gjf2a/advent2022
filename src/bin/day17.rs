@@ -7,22 +7,14 @@ use std::{
 };
 
 const WELL_WIDTH: usize = 7;
-const TOP_ROW_REPEATS_AFTER: [WellCell; WELL_WIDTH] = [
-    WellCell::Air, 
-    WellCell::Air, 
-    WellCell::Rock,
-    WellCell::Rock,
-    WellCell::Rock,
-    WellCell::Rock,
-    WellCell::Air, 
-];
+
 const PART_1_ITERATIONS: isize = 2022;
 const PART_2_ITERATIONS: isize = 1000000000000;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
-        //println!("Iterations/Height at repeat: {:?}", iterations_height_at_repeat(filename)?);
+        println!("Iterations/Height at repeat: {:?}", Tetris::find_repeat_iterations_height(filename)?);
         //println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
@@ -52,6 +44,10 @@ impl <T:Copy> Tracker<T> {
         self.items[self.track.a()]
     }
 
+    pub fn i(&self) -> usize {
+        self.track.a()
+    }
+
     pub fn advance(&mut self) {
         self.track += 1;
     }
@@ -72,8 +68,28 @@ impl Tetris {
         Ok(tetris.height())
     }
 
+    pub fn find_repeat_iterations_height(filename: &str) -> anyhow::Result<(isize,isize)> {
+        let mut tetris = Self::from_file(filename)?;
+        tetris.drop_next();
+        let mut i = 1;
+        let start_row = tetris.well.top_row();
+        let move_after_start = tetris.moves.get();
+        
+        while i < 2 || !(tetris.moves.get() == move_after_start && tetris.well.top_row() == start_row && tetris.next_piece() == Tetromino::Plus) {
+            tetris.drop_next();
+            i += 1;
+        }
+        tetris.drop_next();
+        println!("{}", tetris.well);
+        Ok((i, tetris.height()))
+    }
+
     pub fn height(&self) -> isize {
         self.well.height()
+    }
+
+    pub fn next_piece(&self) -> Tetromino {
+        self.pieces.get()
     }
 
     pub fn from_file(filename: &str) -> anyhow::Result<Self> {
@@ -170,14 +186,8 @@ impl Well {
         }
     }
 
-    pub fn repeats_initial_state(&self) -> bool {
-        if self.height() < 2 {
-            false
-        } else {
-            let last = (self.height() - 1) as usize;
-            let mut need_rocks = TOP_ROW_REPEATS_AFTER.iter().enumerate().filter(|(_, cell)| **cell == WellCell::Air).map(|(i,_)| i);
-            self.cells[last] == TOP_ROW_REPEATS_AFTER && need_rocks.all(|i| self.cells[last - 1][i] == WellCell::Rock)
-        }
+    pub fn top_row(&self) -> [WellCell; WELL_WIDTH] {
+        self.cells.last().cloned().unwrap_or([WellCell::Air; WELL_WIDTH])
     }
 
     pub fn height(&self) -> isize {
@@ -340,16 +350,5 @@ mod tests {
             w.drop_into(t, &mut moves);
         }
         assert_eq!(format!("{w}"), EX_1);
-    }
-
-    #[test]
-    fn test_repeat_test() {
-        let mut w = Well::default();
-        for row in ["..####.", "..####.", "##....#", "..####.", "###...#", "..####.", "##.#..#", "..####."] {
-            w.add_row(row);
-            print!("{w}");
-            println!("{}", w.repeats_initial_state());
-            println!();
-        }
     }
 }
