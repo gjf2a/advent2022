@@ -1,4 +1,7 @@
-use std::{collections::{BTreeMap, BinaryHeap}, fmt::Display};
+use std::{
+    collections::{BTreeMap, BinaryHeap},
+    fmt::Display,
+};
 
 use advent_code_lib::{
     all_lines, breadth_first_search, search, simpler_main, ContinueSearch, SearchQueue,
@@ -33,12 +36,19 @@ pub fn part1(tunnels: &TunnelGraph) -> usize {
         }
         ContinueSearch::Yes
     });
-    println!("enqueued: {} (dequeued {})", result.enqueued(), result.dequeued());
+    println!(
+        "enqueued: {} (dequeued {})",
+        result.enqueued(),
+        result.dequeued()
+    );
     best
 }
 
 fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
-    let mut values: Vec<usize> = remaining_nodes.iter().map(|n| tunnels.pressure_for(n.as_str())).collect();
+    let mut values: Vec<usize> = remaining_nodes
+        .iter()
+        .map(|n| tunnels.pressure_for(n.as_str()))
+        .collect();
     values.sort_by(|a, b| b.cmp(a));
     while values.len() > minutes_left {
         values.pop();
@@ -136,8 +146,17 @@ pub struct TunnelGraph {
 impl Display for TunnelGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for valve in self.valves() {
-            let out = format!("{:?}", self.valve2tunnels.get(valve).unwrap()).replace("[", "").replace("]", "").replace('"', "");
-            write!(f, "Valve {} has flow rate={}; tunnels lead to valves {}\n", valve, self.pressure_for(valve), out)?
+            let out = format!("{:?}", self.valve2tunnels.get(valve).unwrap())
+                .replace("[", "")
+                .replace("]", "")
+                .replace('"', "");
+            write!(
+                f,
+                "Valve {} has flow rate={}; tunnels lead to valves {}\n",
+                valve,
+                self.pressure_for(valve),
+                out
+            )?
         }
         Ok(())
     }
