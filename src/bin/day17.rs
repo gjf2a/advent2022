@@ -32,11 +32,7 @@ impl Display for WellCell {
             WellCell::Rock => "#",
             WellCell::Air => ".",
         };
-        write!(
-            f,
-            "{c}",
-            
-        )
+        write!(f, "{c}",)
     }
 }
 
@@ -63,20 +59,28 @@ impl<const W: usize> Display for Well<W> {
 }
 
 impl<const W: usize> Well<W> {
+    pub fn at(&self, p: Position) -> WellCell {
+        if p.row >= self.height() {
+            WellCell::Air
+        } else {
+            self.cells[p.row as usize][p.col as usize]
+        }
+    }
+
     pub fn height(&self) -> isize {
         self.cells.len() as isize
     }
 
     pub fn contacts(&self, t: Tetromino, p: Position) -> bool {
-        p.row == 0 || t.right_column(p) == (W as isize - 1) ||
-        t.positions(p)
-            .filter(|tp| tp.row < self.height())
-            .any(|tp| {
-                self.cells[tp.row as usize]
+        p.row < 0
+            || t.positions(p)
+                .filter(|tp| tp.row < self.height())
+                .any(|tp| {
+                    self.cells[tp.row as usize]
                         .iter()
                         .enumerate()
                         .any(|(i, c)| *c == WellCell::Rock && i as isize == tp.col)
-            })
+                })
     }
 
     pub fn drop_into<I: Iterator<Item = Move>>(&mut self, t: Tetromino, moves: &mut I) {
@@ -84,9 +88,13 @@ impl<const W: usize> Well<W> {
             col: 2,
             row: self.height() + 3,
         };
-        while !self.contacts(t, tp) {
-            println!("tp: {tp}");
-            tp = moves.next().unwrap().push::<W>(tp);
+        loop {
+            if let Some(new_tp) = self.push(t, tp, moves.next().unwrap()) {
+                tp = new_tp;
+            }
+            if self.contacts(t, tp - Position {row: 1, col: 0}) {
+                break;
+            }
             tp.row -= 1;
         }
         for rock in t.positions(tp) {
@@ -94,6 +102,15 @@ impl<const W: usize> Well<W> {
                 self.cells.push([WellCell::Air; W]);
             }
             self.cells[rock.row as usize][rock.col as usize] = WellCell::Rock;
+        }
+    }
+
+    fn push(&self, t: Tetromino, tp: Position, m: Move) -> Option<Position> {
+        let new_tp = m.push::<W>(tp, t.width());
+        if t.positions(new_tp).any(|p| self.at(p) == WellCell::Rock) {
+            None
+        } else {
+            Some(new_tp)
         }
     }
 }
@@ -119,8 +136,11 @@ impl Tetromino {
         .map(move |(x, y)| bottom_left + Position { col: *x, row: *y })
     }
 
-    pub fn right_column(&self, bottom_left: Position) -> isize {
-        self.positions(bottom_left).map(|p| p.col).max().unwrap()
+    pub fn width(&self) -> isize {
+        self.positions(Position { col: 1, row: 0 })
+            .map(|p| p.col)
+            .max()
+            .unwrap()
     }
 }
 
@@ -131,7 +151,7 @@ pub enum Move {
 }
 
 impl Move {
-    pub fn push<const W: usize>(&self, p: Position) -> Position {
+    pub fn push<const W: usize>(&self, p: Position, width: isize) -> Position {
         match self {
             Self::Left => Position {
                 row: p.row,
@@ -139,7 +159,7 @@ impl Move {
             },
             Self::Right => Position {
                 row: p.row,
-                col: min(W as isize, p.col + 1),
+                col: min(W as isize - width, p.col + 1),
             },
         }
     }
@@ -180,14 +200,25 @@ mod tests {
         assert_eq!("+-------+\n", format!("{w}"));
     }
 
+    const EX_1: &str = "|....##.|
+|....##.|
+|....#..|
+|..#.#..|
+|..#.#..|
+|#####..|
+|..###..|
+|...#...|
+|..####.|
++-------+
+";
     #[test]
     fn test_drop() {
+        let move_line = read_moves("ex/day17.txt").unwrap();
+        let mut moves = moves_from(move_line.as_str());
+        let mut w = Well::<WELL_WIDTH>::default();
         for t in all::<Tetromino>() {
-            let move_line = read_moves("ex/day17.txt").unwrap();
-            let mut moves = moves_from(move_line.as_str());
-            let mut w = Well::<WELL_WIDTH>::default();
             w.drop_into(t, &mut moves);
-            println!("{w}");
         }
+        assert_eq!(format!("{w}"), EX_1);
     }
 }
