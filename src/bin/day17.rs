@@ -1,28 +1,69 @@
 use advent_code_lib::{all_lines, simpler_main, Position};
-use enum_iterator::{Sequence, all};
+use enum_iterator::{all, Sequence};
 use std::{
     cmp::{max, min},
     fmt::Display,
 };
 
 const WELL_WIDTH: usize = 7;
+const TOP_ROW_REPEATS_AFTER: [WellCell; WELL_WIDTH] = [
+    WellCell::Air, 
+    WellCell::Air, 
+    WellCell::Rock,
+    WellCell::Rock,
+    WellCell::Rock,
+    WellCell::Rock,
+    WellCell::Air, 
+];
+const PART_1_ITERATIONS: isize = 2022;
+const PART_2_ITERATIONS: isize = 1000000000000;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
+        println!("Iterations/Height at repeat: {:?}", iterations_height_at_repeat(filename)?);
+        println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
 
 pub fn part1(filename: &str) -> anyhow::Result<isize> {
+    limit_solver(filename, PART_1_ITERATIONS)
+}
+
+pub fn part2(filename: &str) -> anyhow::Result<isize> {
+    repeat_solver(filename, PART_2_ITERATIONS)
+}
+
+pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
     let move_line = read_moves(filename).unwrap();
     let mut moves = moves_from(move_line.as_str());
     let mut w = Well::<WELL_WIDTH>::default();
     let mut tetrominoes = all::<Tetromino>().cycle();
-    for _ in 0..2022 {
+    for _ in 0..iterations {
         w.drop_into(tetrominoes.next().unwrap(), &mut moves);
     }
     Ok(w.height())
+} 
+
+pub fn repeat_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
+    let (repeat_iterations, unit_height) = iterations_height_at_repeat(filename)?;
+    let repetitions = iterations / repeat_iterations;
+    let extra = iterations % repeat_iterations;
+    Ok(repetitions * unit_height + limit_solver(filename, extra)?)
+}
+
+pub fn iterations_height_at_repeat(filename: &str) -> anyhow::Result<(isize,isize)> {
+    let move_line = read_moves(filename).unwrap();
+    let mut moves = moves_from(move_line.as_str());
+    let mut w = Well::<WELL_WIDTH>::default();
+    let mut tetrominoes = all::<Tetromino>().cycle();
+    let mut i = 0;
+    while i <= 1 || w.top_row() != TOP_ROW_REPEATS_AFTER {
+        w.drop_into(tetrominoes.next().unwrap(), &mut moves);
+        i += 1;
+    }
+    Ok((i - 1, w.height() - 1))
 }
 
 pub fn read_moves(filename: &str) -> anyhow::Result<String> {
@@ -46,7 +87,7 @@ impl Display for WellCell {
             WellCell::Rock => "#",
             WellCell::Air => ".",
         };
-        write!(f, "{c}",)
+        write!(f, "{c}")
     }
 }
 
@@ -81,6 +122,14 @@ impl<const W: usize> Well<W> {
         }
     }
 
+    pub fn top_row(&self) -> [WellCell; W] {
+        self.cells.last().cloned().unwrap_or([WellCell::Air; W])
+    }
+
+    pub fn top_row_flat(&self) -> bool {
+        self.cells.last().map(|top_row| top_row.iter().all(|c| *c == WellCell::Rock)).unwrap_or(false)
+    }
+
     pub fn height(&self) -> isize {
         self.cells.len() as isize
     }
@@ -106,7 +155,7 @@ impl<const W: usize> Well<W> {
             if let Some(new_tp) = self.push(t, tp, moves.next().unwrap()) {
                 tp = new_tp;
             }
-            if self.contacts(t, tp - Position {row: 1, col: 0}) {
+            if self.contacts(t, tp - Position { row: 1, col: 0 }) {
                 break;
             }
             tp.row -= 1;
@@ -191,14 +240,11 @@ impl From<char> for Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Left => '<',
-                Self::Right => '>',
-            }
-        )
+        let c = match self {
+            Self::Left => '<',
+            Self::Right => '>',
+        };
+        write!(f, "{c}")
     }
 }
 
