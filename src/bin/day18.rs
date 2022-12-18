@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use advent_code_lib::{all_lines, simpler_main, Point};
+use enum_iterator::{Sequence, all};
 
 const CUBE_DIM: usize = 3;
 
@@ -14,15 +17,11 @@ fn main() -> anyhow::Result<()> {
 }
 
 pub fn part1(droplet: &Droplet) -> usize {
-    droplet.surface_area(|a, b| a.adjacent(b))
-}
-
-pub fn eventually_adjacent(a: &Cubito, b: &Cubito) -> bool {
-    (0..CUBE_DIM).filter(|i| a.coords[*i] == b.coords[*i]).count() == CUBE_DIM - 1
+    droplet.surface_area(Some(1))
 }
 
 pub fn part2(droplet: &Droplet) -> usize {
-    droplet.surface_area(eventually_adjacent)
+    droplet.surface_area(None)
 }
 
 pub struct Droplet {
@@ -38,14 +37,110 @@ impl Droplet {
         Ok(Self { cubes })
     }
 
-    pub fn surface_area<T: Fn(&Cubito,&Cubito)->bool>(&self, test: T) -> usize {
+    pub fn surface_area(&self, max_distance: Option<i64>) -> usize {
         let mut result = 0;
         for cube in self.cubes.iter() {
-            let in_contact = self.cubes.iter().filter(|c| test(cube, c)).count();
+            let neighbors = self.nearest_neighbors(cube, max_distance);
+            let in_contact = neighbors.count();
             assert!(in_contact <= 6);
             result += 6 - in_contact;
         }
         result
+    }
+
+    pub fn nearest_neighbors(&self, cube: &Cubito, max_distance: Option<i64>) -> NeighborsOf {
+        let mut neighbors = NeighborsOf::new(*cube);
+        for other in self.cubes.iter() {
+            neighbors.add_neighbor(other, max_distance);
+        }
+        neighbors
+    }
+}
+
+#[derive(Sequence, Debug, Copy, Clone, Hash,PartialEq, Eq)]
+pub enum Dir {
+    X, Y, Z
+}
+
+impl Dir {
+    pub fn dim(&self) -> usize {
+        match self {
+            Dir::X => 0,
+            Dir::Y => 1,
+            Dir::Z => 2,
+        }
+    }
+}
+
+#[derive(Sequence, Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Pol {
+    Pos, Neg
+}
+
+impl Pol {
+    pub fn new(n: i64) -> Self {
+        if n < 0 {
+            Pol::Neg
+        } else if n > 0 {
+            Pol::Pos
+        } else {
+            panic!("No zero allowed!")
+        }
+    }
+}
+
+pub struct DirPol {
+    dir: Dir,
+    pol: Pol,
+    distance: i64
+}
+
+impl DirPol {
+    pub fn between(a: &Cubito, b: &Cubito) -> Option<Self> {
+        let diff = *a - *b;
+        for dir in all::<Dir>() {
+            let d = dir.dim();
+            if diff[d] != 0 && (0..CUBE_DIM).filter(|i| *i != d && diff[*i] == 0).count() == CUBE_DIM - 1 {
+                let pol = Pol::new(diff[d]);
+                return Some(DirPol {dir, pol, distance: diff[d].abs()});
+            }
+        }
+        None
+    }
+}
+
+pub struct NeighborsOf {
+    cube: Cubito,
+    neighbors: HashMap<(Dir, Pol), (i64, Cubito)>,
+}
+
+impl NeighborsOf {
+    pub fn new(cube: Cubito) -> Self {
+        Self {cube, neighbors: HashMap::new()}
+    }
+
+    pub fn count(&self) -> usize {
+        self.neighbors.len()
+    }
+
+    pub fn add_neighbor(&mut self, neighbor: &Cubito, max_distance: Option<i64>) {
+        if let Some(dirpol) = DirPol::between(&self.cube, neighbor) {
+            assert_ne!(self.cube, *neighbor);
+            if max_distance.map_or(true, |m| dirpol.distance <= m) {
+                let key = (dirpol.dir, dirpol.pol);
+                match self.neighbors.get_mut(&key) {
+                    None => {
+                        self.neighbors.insert(key, (dirpol.distance, *neighbor));
+                    }
+                    Some((distance, prev)) => {
+                        if dirpol.distance < *distance {
+                            *distance = dirpol.distance;
+                            *prev = *neighbor;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
