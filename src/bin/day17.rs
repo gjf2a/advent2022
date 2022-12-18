@@ -16,12 +16,6 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1:  {}", part1(filename)?);
         let repeat_data = Tetris::find_repeat_iterations_height(filename)?;
-        let t = Tetris::build_to_limit(
-            filename,
-            repeat_data.start_drops + repeat_data.repetition_drops * 2,
-        )?;
-        //print!("{}", t.well);
-        println!("{repeat_data:?}");
         println!(
             "Reprise: {}",
             repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?
@@ -104,7 +98,10 @@ impl Tetris {
                 }
                 Some(repeat) => {
                     for checkpoint in repeat.iter().rev() {
-                        if checkpoint.height < tetris.height() && checkpoint.next_move == tetris.moves.i() && checkpoint.next_tetromino == tetris.pieces.i() {
+                        if checkpoint.height < tetris.height()
+                            && checkpoint.next_move == tetris.moves.i()
+                            && checkpoint.next_tetromino == tetris.pieces.i()
+                        {
                             if tetris
                                 .well
                                 .repetition_of(checkpoint.height - 1, tetris.height() - 1)
@@ -172,7 +169,6 @@ impl RepeatOutcome {
         let total = iterations - self.start_drops;
         let num_repetitions = total / self.repetition_drops;
         let extra_drops = total % self.repetition_drops;
-        println!("extra: {extra_drops}");
         let drops_to_simulate = self.start_drops + self.repetition_drops + extra_drops;
         let base_height = Tetris::limit_solver(filename, drops_to_simulate)?;
         let extra_height = self.repetition_length * (num_repetitions - 1);
