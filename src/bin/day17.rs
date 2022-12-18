@@ -13,12 +13,13 @@ const PART_2_ITERATIONS: isize = 1000000000000;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        println!("Part 1: {}", part1(filename)?);
+        println!("Part 1:  {}", part1(filename)?);
         let repeat_data = Tetris::find_repeat_iterations_height(filename)?;
+        let t = Tetris::build_to_limit(filename, repeat_data.start_drops + repeat_data.repetition_drops * 2)?;
+        print!("{}", t.well);
         println!("{repeat_data:?}");
-        println!("{}", repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?);
-        println!("{}", repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?);
-        //println!("Part 2: {}", part2(filename)?);
+        println!("Reprise: {}", repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?);
+        println!("Part 2:  {}", repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?);
         Ok(())
     })
 }
@@ -26,10 +27,6 @@ fn main() -> anyhow::Result<()> {
 pub fn part1(filename: &str) -> anyhow::Result<isize> {
     Tetris::limit_solver(filename, PART_1_ITERATIONS)
 }
-
-//pub fn part2(filename: &str) -> anyhow::Result<isize> {
-//    repeat_solver(filename, PART_2_ITERATIONS)
-//}
 
 pub struct Tracker<T> {
     items: Vec<T>,
@@ -63,12 +60,16 @@ pub struct Tetris {
 }
 
 impl Tetris {
-    pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
+    pub fn build_to_limit(filename: &str, iterations: isize) -> anyhow::Result<Self> {
         let mut tetris = Self::from_file(filename)?;
         for _ in 0..iterations {
             tetris.drop_next();
         }
-        Ok(tetris.height())
+        Ok(tetris)
+    } 
+
+    pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
+        Self::build_to_limit(filename, iterations).map(|t| t.height())
     }
 
     pub fn find_repeat_iterations_height(filename: &str) -> anyhow::Result<RepeatOutcome> {
@@ -151,28 +152,6 @@ pub struct Checkpoint {
     height: isize,
 }
 
-
-/* 
-pub fn repeat_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
-    let (repeat_iterations, unit_height) = iterations_height_at_repeat(filename)?;
-    let repetitions = iterations / repeat_iterations;
-    let extra = iterations % repeat_iterations;
-    Ok(repetitions * unit_height + limit_solver(filename, extra)?)
-}
-
-pub fn iterations_height_at_repeat(filename: &str) -> anyhow::Result<(isize,isize)> {
-    let move_line = read_moves(filename).unwrap();
-    let mut moves = moves_from(move_line.as_str());
-    let mut w = Well::default();
-    let mut tetrominoes = all::<Tetromino>().cycle();
-    let mut i = 0;
-    while !w.repeats_initial_state() {
-        w.drop_into(tetrominoes.next().unwrap(), &mut moves);
-        i += 1;
-    }
-    Ok((i - 1, w.height() - 1))
-}
-*/
 pub fn read_moves(filename: &str) -> anyhow::Result<String> {
     Ok(all_lines(filename)?.next().unwrap())
 }
