@@ -56,6 +56,10 @@ fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<S
     values.iter().sum::<usize>() * minutes_left
 }
 
+fn potential2(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
+    0
+}
+
 #[derive(Default, Clone, Eq, PartialEq, Ord, Debug)]
 struct PressureNode {
     at: String,
