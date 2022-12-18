@@ -24,6 +24,7 @@ fn main() -> anyhow::Result<()> {
             "Part 2:  {}",
             repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?
         );
+        println!("{repeat_data:?}");
         Ok(())
     })
 }
