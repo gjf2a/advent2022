@@ -3,7 +3,8 @@ use bare_metal_modulo::*;
 use enum_iterator::{all, Sequence};
 use std::{
     cmp::{max, min},
-    fmt::{Debug, Display}, collections::HashMap,
+    collections::HashMap,
+    fmt::{Debug, Display},
 };
 
 const WELL_WIDTH: usize = 7;
@@ -15,11 +16,20 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1:  {}", part1(filename)?);
         let repeat_data = Tetris::find_repeat_iterations_height(filename)?;
-        let t = Tetris::build_to_limit(filename, repeat_data.start_drops + repeat_data.repetition_drops * 2)?;
-        print!("{}", t.well);
+        let t = Tetris::build_to_limit(
+            filename,
+            repeat_data.start_drops + repeat_data.repetition_drops * 2,
+        )?;
+        //print!("{}", t.well);
         println!("{repeat_data:?}");
-        println!("Reprise: {}", repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?);
-        println!("Part 2:  {}", repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?);
+        println!(
+            "Reprise: {}",
+            repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?
+        );
+        println!(
+            "Part 2:  {}",
+            repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?
+        );
         Ok(())
     })
 }
@@ -33,11 +43,11 @@ pub struct Tracker<T> {
     track: ModNum<usize>,
 }
 
-impl <T:Copy> Tracker<T> {
-    pub fn new<I: Iterator<Item=T>>(items: I) -> Self {
+impl<T: Copy> Tracker<T> {
+    pub fn new<I: Iterator<Item = T>>(items: I) -> Self {
         let items: Vec<T> = items.collect();
         let track = ModNum::new(0, items.len());
-        Self {items, track}
+        Self { items, track }
     }
 
     pub fn get(&self) -> T {
@@ -66,7 +76,7 @@ impl Tetris {
             tetris.drop_next();
         }
         Ok(tetris)
-    } 
+    }
 
     pub fn limit_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
         Self::build_to_limit(filename, iterations).map(|t| t.height())
@@ -81,20 +91,44 @@ impl Tetris {
             num_drops += 1;
             let top_row = tetris.well.top_row();
             match previous_rows.get_mut(&top_row) {
-                None => {previous_rows.insert(top_row, vec![Checkpoint {num_drops, height: tetris.height()}]);}
+                None => {
+                    previous_rows.insert(
+                        top_row,
+                        vec![Checkpoint {
+                            num_drops,
+                            height: tetris.height(),
+                            next_move: tetris.moves.i(),
+                            next_tetromino: tetris.pieces.i(),
+                        }],
+                    );
+                }
                 Some(repeat) => {
                     for checkpoint in repeat.iter().rev() {
-                        if checkpoint.height < tetris.height() {
-                            if tetris.well.repetition_of(checkpoint.height - 1, tetris.height() - 1) {
-                                return Ok(RepeatOutcome { start_drops: checkpoint.num_drops, repetition_drops: num_drops - checkpoint.num_drops, repetition_length: tetris.height() - checkpoint.height });
+                        if checkpoint.height < tetris.height() && checkpoint.next_move == tetris.moves.i() && checkpoint.next_tetromino == tetris.pieces.i() {
+                            if tetris
+                                .well
+                                .repetition_of(checkpoint.height - 1, tetris.height() - 1)
+                            {
+                                return Ok(RepeatOutcome {
+                                    start_drops: checkpoint.num_drops,
+                                    repetition_drops: num_drops - checkpoint.num_drops,
+                                    repetition_length: tetris.height() - checkpoint.height,
+                                });
                             }
                         }
                     }
                     let mut last = repeat.last_mut().unwrap();
                     if last.height == tetris.height() {
                         last.num_drops = num_drops;
+                        last.next_move = tetris.moves.i();
+                        last.next_tetromino = tetris.pieces.i();
                     } else {
-                        repeat.push(Checkpoint {num_drops, height: tetris.height()});
+                        repeat.push(Checkpoint {
+                            num_drops,
+                            height: tetris.height(),
+                            next_move: tetris.moves.i(),
+                            next_tetromino: tetris.pieces.i(),
+                        });
                     }
                 }
             }
@@ -150,6 +184,8 @@ impl RepeatOutcome {
 pub struct Checkpoint {
     num_drops: isize,
     height: isize,
+    next_move: usize,
+    next_tetromino: usize,
 }
 
 pub fn read_moves(filename: &str) -> anyhow::Result<String> {
@@ -227,7 +263,10 @@ impl Well {
     }
 
     pub fn top_row(&self) -> [WellCell; WELL_WIDTH] {
-        self.cells.last().cloned().unwrap_or([WellCell::Air; WELL_WIDTH])
+        self.cells
+            .last()
+            .cloned()
+            .unwrap_or([WellCell::Air; WELL_WIDTH])
     }
 
     pub fn row(&self, height: isize) -> [WellCell; WELL_WIDTH] {
@@ -366,7 +405,7 @@ impl Display for Move {
 mod tests {
     use enum_iterator::all;
 
-    use crate::{moves_from, read_moves, Tetromino, Well, Tracker};
+    use crate::{moves_from, read_moves, Tetromino, Tracker, Well};
 
     #[test]
     fn test_empty() {
