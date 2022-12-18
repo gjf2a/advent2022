@@ -3,7 +3,7 @@ use bare_metal_modulo::*;
 use enum_iterator::{all, Sequence};
 use std::{
     cmp::{max, min},
-    fmt::Display,
+    fmt::{Debug, Display}, collections::HashMap,
 };
 
 const WELL_WIDTH: usize = 7;
@@ -14,7 +14,10 @@ const PART_2_ITERATIONS: isize = 1000000000000;
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
-        println!("Iterations/Height at repeat: {:?}", Tetris::find_repeat_iterations_height(filename)?);
+        let repeat_data = Tetris::find_repeat_iterations_height(filename)?;
+        println!("{repeat_data:?}");
+        println!("{}", repeat_data.calculate_height_at(filename, PART_1_ITERATIONS)?);
+        println!("{}", repeat_data.calculate_height_at(filename, PART_2_ITERATIONS)?);
         //println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
@@ -68,20 +71,33 @@ impl Tetris {
         Ok(tetris.height())
     }
 
-    pub fn find_repeat_iterations_height(filename: &str) -> anyhow::Result<(isize,isize)> {
+    pub fn find_repeat_iterations_height(filename: &str) -> anyhow::Result<RepeatOutcome> {
+        let mut previous_rows = HashMap::new();
         let mut tetris = Self::from_file(filename)?;
-        tetris.drop_next();
-        let mut i = 1;
-        let start_row = tetris.well.top_row();
-        let move_after_start = tetris.moves.get();
-        
-        while i < 2 || !(tetris.moves.get() == move_after_start && tetris.well.top_row() == start_row && tetris.next_piece() == Tetromino::Plus) {
+        let mut num_drops = 0;
+        loop {
             tetris.drop_next();
-            i += 1;
+            num_drops += 1;
+            let top_row = tetris.well.top_row();
+            match previous_rows.get_mut(&top_row) {
+                None => {previous_rows.insert(top_row, vec![Checkpoint {num_drops, height: tetris.height()}]);}
+                Some(repeat) => {
+                    for checkpoint in repeat.iter().rev() {
+                        if checkpoint.height < tetris.height() {
+                            if tetris.well.repetition_of(checkpoint.height - 1, tetris.height() - 1) {
+                                return Ok(RepeatOutcome { start_drops: checkpoint.num_drops, repetition_drops: num_drops - checkpoint.num_drops, repetition_length: tetris.height() - checkpoint.height });
+                            }
+                        }
+                    }
+                    let mut last = repeat.last_mut().unwrap();
+                    if last.height == tetris.height() {
+                        last.num_drops = num_drops;
+                    } else {
+                        repeat.push(Checkpoint {num_drops, height: tetris.height()});
+                    }
+                }
+            }
         }
-        tetris.drop_next();
-        println!("{}", tetris.well);
-        Ok((i, tetris.height()))
     }
 
     pub fn height(&self) -> isize {
@@ -108,6 +124,33 @@ impl Tetris {
         self.pieces.advance();
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct RepeatOutcome {
+    pub start_drops: isize,
+    pub repetition_drops: isize,
+    pub repetition_length: isize,
+}
+
+impl RepeatOutcome {
+    pub fn calculate_height_at(&self, filename: &str, iterations: isize) -> anyhow::Result<isize> {
+        let total = iterations - self.start_drops;
+        let num_repetitions = total / self.repetition_drops;
+        let extra_drops = total % self.repetition_drops;
+        println!("extra: {extra_drops}");
+        let drops_to_simulate = self.start_drops + self.repetition_drops + extra_drops;
+        let base_height = Tetris::limit_solver(filename, drops_to_simulate)?;
+        let extra_height = self.repetition_length * (num_repetitions - 1);
+        Ok(base_height + extra_height)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Checkpoint {
+    num_drops: isize,
+    height: isize,
+}
+
 
 /* 
 pub fn repeat_solver(filename: &str, iterations: isize) -> anyhow::Result<isize> {
@@ -138,7 +181,7 @@ pub fn moves_from(s: &str) -> impl Iterator<Item = Move> + '_ {
     s.chars().map(|c| c.into())
 }
 
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug, Hash)]
 pub enum WellCell {
     Rock,
     #[default]
@@ -186,8 +229,30 @@ impl Well {
         }
     }
 
+    pub fn repetition_of(&self, end1: isize, end2: isize) -> bool {
+        let size = end2 - end1;
+        if size <= 0 {
+            false
+        } else {
+            let mut two = end2;
+            let mut one = end1;
+            while two > end1 {
+                if one < 0 || self.cells[one as usize] != self.cells[two as usize] {
+                    return false;
+                }
+                one -= 1;
+                two -= 1;
+            }
+            true
+        }
+    }
+
     pub fn top_row(&self) -> [WellCell; WELL_WIDTH] {
         self.cells.last().cloned().unwrap_or([WellCell::Air; WELL_WIDTH])
+    }
+
+    pub fn row(&self, height: isize) -> [WellCell; WELL_WIDTH] {
+        self.cells[height as usize].clone()
     }
 
     pub fn height(&self) -> isize {
