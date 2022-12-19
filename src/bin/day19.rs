@@ -139,9 +139,8 @@ impl BlueprintStateTable {
             let mut most_geodes_produced = 0;
             for state in states[minute - 1].iter() {
                 for successor in state.successors(blueprint) {
-                    let revised_geo =
-                        successor.geode_production_upper_bound(minutes - minute, blueprint);
-                    if revised_geo > most_geodes_produced {
+                    let bound = successor.geode_production_upper_bound(minutes - minute, blueprint);
+                    if bound > most_geodes_produced {
                         most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
                         new_states.insert(successor);
                     }
@@ -230,10 +229,6 @@ impl State {
             }
         }
         current_mineral
-    }
-
-    pub fn original_geode(&self, minutes_left: usize) -> usize {
-        self.production_upper_bound_for(minutes_left, Mineral::Geode, minutes_left)
     }
 
     pub fn geode_production_upper_bound(
