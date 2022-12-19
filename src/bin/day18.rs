@@ -73,7 +73,7 @@ impl Droplet {
 
 #[cfg(test)]
 mod tests {
-    use crate::{part1, Droplet, Cubito};
+    use crate::{part1, Cubito, Droplet};
 
     #[test]
     fn test_1() {

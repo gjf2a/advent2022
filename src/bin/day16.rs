@@ -1,6 +1,7 @@
 use std::{
-    collections::{BTreeMap, BinaryHeap, BTreeSet},
-    fmt::Display, iter::repeat,
+    collections::{BTreeMap, BTreeSet, BinaryHeap},
+    fmt::Display,
+    iter::repeat,
 };
 
 use advent_code_lib::{
@@ -104,14 +105,24 @@ impl PressureNode {
     }
 
     fn min_minutes_left(&self) -> usize {
-        self.explorers.iter().map(|ex| ex.minutes_left).min().unwrap()
+        self.explorers
+            .iter()
+            .map(|ex| ex.minutes_left)
+            .min()
+            .unwrap()
     }
 
-    fn successor(&self, explorer: usize, valve: usize, tunnels: &TunnelGraph) -> Option<PressureNode> {
+    fn successor(
+        &self,
+        explorer: usize,
+        valve: usize,
+        tunnels: &TunnelGraph,
+    ) -> Option<PressureNode> {
         let moves = tunnels.valve_activation_times[self.explorers[explorer].at][valve];
         if moves <= self.explorers[explorer].minutes_left {
             let mut opened = self.opened.clone();
-            let pressure_from = (self.explorers[explorer].minutes_left - moves) * tunnels.pressure_for(valve);
+            let pressure_from =
+                (self.explorers[explorer].minutes_left - moves) * tunnels.pressure_for(valve);
             opened[valve] = pressure_from;
             let mut updated_explorers = self.explorers.clone();
             updated_explorers[explorer].at = valve;
@@ -216,7 +227,7 @@ impl TunnelGraph {
             let name = parts.by_ref().skip(1).next().unwrap();
             let rate = parse_rate(parts.by_ref().skip(2).next().unwrap());
             let tunnels: Vec<String> = parts.by_ref().skip(4).map(|s| s[..2].to_string()).collect();
-            
+
             let id_num = result.names.len();
             result.ids.insert(name.to_string(), id_num);
             result.names.push(name.to_string());
@@ -224,7 +235,10 @@ impl TunnelGraph {
             tunnel_list.push(tunnels);
         }
         for tunnels in tunnel_list {
-            let tunnels = tunnels.iter().map(|s| result.ids.get(s).copied().unwrap()).collect();
+            let tunnels = tunnels
+                .iter()
+                .map(|s| result.ids.get(s).copied().unwrap())
+                .collect();
             result.valve2tunnels.push(tunnels);
         }
         result.valve_activation_times = result

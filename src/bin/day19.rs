@@ -1,9 +1,7 @@
 use std::{collections::BTreeMap, iter::zip};
 
-use advent_code_lib::{
-    simpler_main, all_nums_from, all_lines,
-};
-use enum_iterator::{Sequence, all};
+use advent_code_lib::{all_lines, all_nums_from, simpler_main};
+use enum_iterator::{all, Sequence};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -20,12 +18,15 @@ pub fn part1(costs: &Costs) -> usize {
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Sequence)]
 pub enum Mineral {
-    Ore, Clay, Obsidian, Geode
+    Ore,
+    Clay,
+    Obsidian,
+    Geode,
 }
 
 #[derive(Clone, Debug)]
 pub struct Costs {
-    table: Vec<BTreeMap<Mineral, BTreeMap<Mineral, i64>>>
+    table: Vec<BTreeMap<Mineral, BTreeMap<Mineral, i64>>>,
 }
 
 impl Costs {
@@ -38,14 +39,20 @@ impl Costs {
             let costs = [
                 vec![(Mineral::Ore, nums.pop_front().unwrap())],
                 vec![(Mineral::Ore, nums.pop_front().unwrap())],
-                vec![(Mineral::Ore, nums.pop_front().unwrap()), (Mineral::Clay, nums.pop_front().unwrap())],
-                vec![(Mineral::Ore, nums.pop_front().unwrap()), (Mineral::Obsidian, nums.pop_front().unwrap())]
+                vec![
+                    (Mineral::Ore, nums.pop_front().unwrap()),
+                    (Mineral::Clay, nums.pop_front().unwrap()),
+                ],
+                vec![
+                    (Mineral::Ore, nums.pop_front().unwrap()),
+                    (Mineral::Obsidian, nums.pop_front().unwrap()),
+                ],
             ];
             for (mineral, cost) in zip(all::<Mineral>(), costs.iter()) {
                 this_table.insert(mineral, cost.iter().copied().collect());
             }
             table.push(this_table);
         }
-        Ok(Self {table})
+        Ok(Self { table })
     }
 }
