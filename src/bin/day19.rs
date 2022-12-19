@@ -1,8 +1,12 @@
-use std::{iter::zip, collections::HashSet, cmp::{max, min}};
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+    iter::zip,
+};
 
 use advent_code_lib::{all_lines, all_nums_from, simpler_main};
-use enum_iterator::{all, Sequence, reverse_all};
-use enum_map::{EnumMap, Enum};
+use enum_iterator::{all, reverse_all, Sequence};
+use enum_map::{Enum, EnumMap};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -31,7 +35,7 @@ pub enum Mineral {
 
 #[derive(Default)]
 pub struct BlueprintStateTable {
-    states: Vec<HashSet<State>>
+    states: Vec<HashSet<State>>,
 }
 
 impl BlueprintStateTable {
@@ -42,7 +46,8 @@ impl BlueprintStateTable {
             let mut most_geodes_produced = 0;
             for state in states[minute - 1].iter() {
                 for successor in state.successors(blueprint, costs) {
-                    let revised_geo = successor.geode_production_upper_bound(minutes - minute, blueprint, costs);
+                    let revised_geo =
+                        successor.geode_production_upper_bound(minutes - minute, blueprint, costs);
                     if revised_geo > most_geodes_produced {
                         most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
                         new_states.insert(successor);
@@ -51,11 +56,17 @@ impl BlueprintStateTable {
             }
             states.push(new_states);
         }
-        Self {states}
+        Self { states }
     }
 
     pub fn geodes(&self) -> usize {
-        self.states.last().unwrap().iter().map(|s| s.mined_minerals[Mineral::Geode]).max().unwrap_or(0)
+        self.states
+            .last()
+            .unwrap()
+            .iter()
+            .map(|s| s.mined_minerals[Mineral::Geode])
+            .max()
+            .unwrap_or(0)
     }
 }
 
@@ -69,7 +80,10 @@ impl Default for State {
     fn default() -> Self {
         let mut robot_count = EnumMap::default();
         robot_count[Mineral::Ore] = 1;
-        State {robot_count, mined_minerals: EnumMap::default()}
+        State {
+            robot_count,
+            mined_minerals: EnumMap::default(),
+        }
     }
 }
 
@@ -78,12 +92,17 @@ impl State {
         let mut result = vec![];
         for robot in reverse_all::<Mineral>() {
             if let Some(after_use) = costs.construct(blueprint, robot, &self.mined_minerals) {
-                let mut successor = Self {robot_count: self.robot_count.clone(), mined_minerals: after_use};
+                let mut successor = Self {
+                    robot_count: self.robot_count.clone(),
+                    mined_minerals: after_use,
+                };
                 successor.mine();
                 successor.robot_count[robot] += 1;
                 match robot {
-                    Mineral::Geode | Mineral::Obsidian => {return vec![successor]},
-                    _ => {result.push(successor);}
+                    Mineral::Geode | Mineral::Obsidian => return vec![successor],
+                    _ => {
+                        result.push(successor);
+                    }
                 }
             }
         }
@@ -103,7 +122,12 @@ impl State {
         self.mined_minerals[Mineral::Geode]
     }
 
-    pub fn production_upper_bound_for(&self, max_extra_robots: usize, mineral: Mineral, minutes_left: usize) -> usize {
+    pub fn production_upper_bound_for(
+        &self,
+        max_extra_robots: usize,
+        mineral: Mineral,
+        minutes_left: usize,
+    ) -> usize {
         let mut current_mineral = self.mined_minerals[mineral];
         let mut current_robots = self.robot_count[mineral];
         for _ in 0..minutes_left {
@@ -111,7 +135,7 @@ impl State {
             if current_robots < self.robot_count[mineral] + max_extra_robots {
                 current_robots += 1;
             }
-        }        
+        }
         current_mineral
     }
 
@@ -119,13 +143,22 @@ impl State {
         self.production_upper_bound_for(minutes_left, Mineral::Geode, minutes_left)
     }
 
-    pub fn geode_production_upper_bound(&self, minutes_left: usize, blueprint: usize, costs: &Costs) -> usize {
+    pub fn geode_production_upper_bound(
+        &self,
+        minutes_left: usize,
+        blueprint: usize,
+        costs: &Costs,
+    ) -> usize {
         let ore_upper_bound = self.production_upper_bound_for(0, Mineral::Ore, minutes_left);
         let max_clay_robots = ore_upper_bound / costs.table[blueprint][Mineral::Clay][Mineral::Ore];
-        let clay_upper_bound = self.production_upper_bound_for(max_clay_robots, Mineral::Clay, minutes_left);
-        let max_obsidian_robots = clay_upper_bound / costs.table[blueprint][Mineral::Obsidian][Mineral::Clay];
-        let obsidian_upper_bound = self.production_upper_bound_for(max_obsidian_robots, Mineral::Obsidian, minutes_left);
-        let max_geode_robots = obsidian_upper_bound / costs.table[blueprint][Mineral::Geode][Mineral::Obsidian];
+        let clay_upper_bound =
+            self.production_upper_bound_for(max_clay_robots, Mineral::Clay, minutes_left);
+        let max_obsidian_robots =
+            clay_upper_bound / costs.table[blueprint][Mineral::Obsidian][Mineral::Clay];
+        let obsidian_upper_bound =
+            self.production_upper_bound_for(max_obsidian_robots, Mineral::Obsidian, minutes_left);
+        let max_geode_robots =
+            obsidian_upper_bound / costs.table[blueprint][Mineral::Geode][Mineral::Obsidian];
         self.production_upper_bound_for(max_geode_robots, Mineral::Geode, minutes_left)
     }
 }
@@ -161,7 +194,12 @@ impl Costs {
         total
     }
 
-    pub fn construct(&self, blueprint: usize, robot: Mineral, mined_minerals: &EnumMap<Mineral, usize>) -> Option<EnumMap<Mineral, usize>> {
+    pub fn construct(
+        &self,
+        blueprint: usize,
+        robot: Mineral,
+        mined_minerals: &EnumMap<Mineral, usize>,
+    ) -> Option<EnumMap<Mineral, usize>> {
         let mut result = mined_minerals.clone();
         for (mineral, cost) in self.table[blueprint][robot].iter() {
             if *cost > result[mineral] {
