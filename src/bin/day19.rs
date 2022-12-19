@@ -25,6 +25,99 @@ pub fn part2(costs: &Costs) -> usize {
     costs.part_2_score(32)
 }
 
+pub type Blueprint = EnumMap<Mineral, EnumMap<Mineral, usize>>;
+
+pub fn build_robot(
+    blueprint: &Blueprint,
+    robot: Mineral,
+    mined_minerals: &EnumMap<Mineral, usize>,
+) -> Option<EnumMap<Mineral, usize>> {
+    let mut result = mined_minerals.clone();
+    for (mineral, cost) in blueprint[robot].iter() {
+        if *cost > result[mineral] {
+            return None;
+        } else {
+            result[mineral] -= cost;
+        }
+    }
+    Some(result)
+}
+
+#[derive(Clone, Debug)]
+pub struct Costs {
+    table: Vec<Blueprint>,
+}
+
+impl Costs {
+    pub fn part_1_score(&self, minutes: usize) -> usize {
+        let mut total = 0;
+        for blueprint in 0..self.table.len() {
+            let table = BlueprintStateTable::after(&self.table[blueprint], minutes);
+            let id = blueprint + 1;
+            let geodes = table.geodes();
+            let score = id * geodes;
+            println!("Blueprint {id} geodes: {geodes} ({score})");
+            total += score;
+        }
+        total
+    }
+
+    pub fn part_2_score(&self, minutes: usize) -> usize {
+        let mut total = 1;
+        for blueprint in 0..min(3, self.table.len()) {
+            let table = BlueprintStateTable::after(&self.table[blueprint], minutes);
+            let id = blueprint + 1;
+            let geodes = table.geodes();
+            println!("Blueprint {id} geodes: {geodes}");
+            total *= geodes;
+        }
+        total
+    }
+
+    pub fn construct(
+        &self,
+        blueprint: usize,
+        robot: Mineral,
+        mined_minerals: &EnumMap<Mineral, usize>,
+    ) -> Option<EnumMap<Mineral, usize>> {
+        let mut result = mined_minerals.clone();
+        for (mineral, cost) in self.table[blueprint][robot].iter() {
+            if *cost > result[mineral] {
+                return None;
+            } else {
+                result[mineral] -= cost;
+            }
+        }
+        Some(result)
+    }
+
+    pub fn from_file(filename: &str) -> anyhow::Result<Self> {
+        let mut table = Vec::new();
+        for line in all_lines(filename)? {
+            let mut nums = all_nums_from(line);
+            nums.pop_front().unwrap();
+            let mut this_table = EnumMap::default();
+            let costs = [
+                vec![(Mineral::Ore, nums.pop_front().unwrap())],
+                vec![(Mineral::Ore, nums.pop_front().unwrap())],
+                vec![
+                    (Mineral::Ore, nums.pop_front().unwrap()),
+                    (Mineral::Clay, nums.pop_front().unwrap()),
+                ],
+                vec![
+                    (Mineral::Ore, nums.pop_front().unwrap()),
+                    (Mineral::Obsidian, nums.pop_front().unwrap()),
+                ],
+            ];
+            for (mineral, cost) in zip(all::<Mineral>(), costs.iter()) {
+                this_table[mineral] = cost.iter().copied().collect();
+            }
+            table.push(this_table);
+        }
+        Ok(Self { table })
+    }
+}
+
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Enum, Sequence)]
 pub enum Mineral {
     Ore,
@@ -39,15 +132,15 @@ pub struct BlueprintStateTable {
 }
 
 impl BlueprintStateTable {
-    pub fn after(blueprint: usize, costs: &Costs, minutes: usize) -> Self {
+    pub fn after(blueprint: &Blueprint, minutes: usize) -> Self {
         let mut states: Vec<HashSet<State>> = vec![[State::default()].iter().cloned().collect()];
         for minute in 1..=minutes {
             let mut new_states = HashSet::new();
             let mut most_geodes_produced = 0;
             for state in states[minute - 1].iter() {
-                for successor in state.successors(blueprint, costs) {
+                for successor in state.successors(blueprint) {
                     let revised_geo =
-                        successor.geode_production_upper_bound(minutes - minute, blueprint, costs);
+                        successor.geode_production_upper_bound(minutes - minute, blueprint);
                     if revised_geo > most_geodes_produced {
                         most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
                         new_states.insert(successor);
@@ -88,10 +181,10 @@ impl Default for State {
 }
 
 impl State {
-    pub fn successors(&self, blueprint: usize, costs: &Costs) -> Vec<Self> {
+    pub fn successors(&self, blueprint: &Blueprint) -> Vec<Self> {
         let mut result = vec![];
         for robot in reverse_all::<Mineral>() {
-            if let Some(after_use) = costs.construct(blueprint, robot, &self.mined_minerals) {
+            if let Some(after_use) = build_robot(blueprint, robot, &self.mined_minerals) {
                 let mut successor = Self {
                     robot_count: self.robot_count.clone(),
                     mined_minerals: after_use,
@@ -146,94 +239,16 @@ impl State {
     pub fn geode_production_upper_bound(
         &self,
         minutes_left: usize,
-        blueprint: usize,
-        costs: &Costs,
+        blueprint: &Blueprint,
     ) -> usize {
         let ore_upper_bound = self.production_upper_bound_for(0, Mineral::Ore, minutes_left);
-        let max_clay_robots = ore_upper_bound / costs.table[blueprint][Mineral::Clay][Mineral::Ore];
+        let max_clay_robots = ore_upper_bound / blueprint[Mineral::Clay][Mineral::Ore];
         let clay_upper_bound =
             self.production_upper_bound_for(max_clay_robots, Mineral::Clay, minutes_left);
-        let max_obsidian_robots =
-            clay_upper_bound / costs.table[blueprint][Mineral::Obsidian][Mineral::Clay];
+        let max_obsidian_robots = clay_upper_bound / blueprint[Mineral::Obsidian][Mineral::Clay];
         let obsidian_upper_bound =
             self.production_upper_bound_for(max_obsidian_robots, Mineral::Obsidian, minutes_left);
-        let max_geode_robots =
-            obsidian_upper_bound / costs.table[blueprint][Mineral::Geode][Mineral::Obsidian];
+        let max_geode_robots = obsidian_upper_bound / blueprint[Mineral::Geode][Mineral::Obsidian];
         self.production_upper_bound_for(max_geode_robots, Mineral::Geode, minutes_left)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Costs {
-    table: Vec<EnumMap<Mineral, EnumMap<Mineral, usize>>>,
-}
-
-impl Costs {
-    pub fn part_1_score(&self, minutes: usize) -> usize {
-        let mut total = 0;
-        for blueprint in 0..self.table.len() {
-            let table = BlueprintStateTable::after(blueprint, self, minutes);
-            let id = blueprint + 1;
-            let geodes = table.geodes();
-            let score = id * geodes;
-            println!("Blueprint {id} geodes: {geodes} ({score})");
-            total += score;
-        }
-        total
-    }
-
-    pub fn part_2_score(&self, minutes: usize) -> usize {
-        let mut total = 1;
-        for blueprint in 0..min(3, self.table.len()) {
-            let table = BlueprintStateTable::after(blueprint, self, minutes);
-            let id = blueprint + 1;
-            let geodes = table.geodes();
-            println!("Blueprint {id} geodes: {geodes}");
-            total *= geodes;
-        }
-        total
-    }
-
-    pub fn construct(
-        &self,
-        blueprint: usize,
-        robot: Mineral,
-        mined_minerals: &EnumMap<Mineral, usize>,
-    ) -> Option<EnumMap<Mineral, usize>> {
-        let mut result = mined_minerals.clone();
-        for (mineral, cost) in self.table[blueprint][robot].iter() {
-            if *cost > result[mineral] {
-                return None;
-            } else {
-                result[mineral] -= cost;
-            }
-        }
-        Some(result)
-    }
-
-    pub fn from_file(filename: &str) -> anyhow::Result<Self> {
-        let mut table = Vec::new();
-        for line in all_lines(filename)? {
-            let mut nums = all_nums_from(line);
-            nums.pop_front().unwrap();
-            let mut this_table = EnumMap::default();
-            let costs = [
-                vec![(Mineral::Ore, nums.pop_front().unwrap())],
-                vec![(Mineral::Ore, nums.pop_front().unwrap())],
-                vec![
-                    (Mineral::Ore, nums.pop_front().unwrap()),
-                    (Mineral::Clay, nums.pop_front().unwrap()),
-                ],
-                vec![
-                    (Mineral::Ore, nums.pop_front().unwrap()),
-                    (Mineral::Obsidian, nums.pop_front().unwrap()),
-                ],
-            ];
-            for (mineral, cost) in zip(all::<Mineral>(), costs.iter()) {
-                this_table[mineral] = cost.iter().copied().collect();
-            }
-            table.push(this_table);
-        }
-        Ok(Self { table })
     }
 }
