@@ -1,7 +1,7 @@
 use std::{iter::zip, collections::HashSet, cmp::{max, min}};
 
 use advent_code_lib::{all_lines, all_nums_from, simpler_main};
-use enum_iterator::{all, Sequence};
+use enum_iterator::{all, Sequence, reverse_all};
 use enum_map::{EnumMap, Enum};
 
 fn main() -> anyhow::Result<()> {
@@ -76,7 +76,7 @@ impl Default for State {
 impl State {
     pub fn successors(&self, blueprint: usize, costs: &Costs) -> Vec<Self> {
         let mut result = vec![];
-        for robot in [Mineral::Geode, Mineral::Obsidian, Mineral::Clay, Mineral::Ore] {
+        for robot in reverse_all::<Mineral>() {
             if let Some(after_use) = costs.construct(blueprint, robot, &self.mined_minerals) {
                 let mut successor = Self {robot_count: self.robot_count.clone(), mined_minerals: after_use};
                 successor.mine();
