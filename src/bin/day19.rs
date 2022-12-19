@@ -29,12 +29,6 @@ pub enum Mineral {
     Geode,
 }
 
-// This cries out for dynamic programming.
-// 
-// What is in a state?
-// * elapsed time
-// * number of each robot type
-// * amount of each collected mineral
 #[derive(Default)]
 pub struct BlueprintStateTable {
     states: Vec<HashSet<State>>
@@ -45,22 +39,16 @@ impl BlueprintStateTable {
         let mut states: Vec<HashSet<State>> = vec![[State::default()].iter().cloned().collect()];
         for minute in 1..=minutes {
             let mut new_states = HashSet::new();
-            let mut insertions = 0;
             let mut most_geodes_produced = 0;
-            let mut geode_savings = 0;
             for state in states[minute - 1].iter() {
                 for successor in state.successors(blueprint, costs) {
-                    let old_geo = successor.original_geode(minutes - minute);
                     let revised_geo = successor.geode_production_upper_bound(minutes - minute, blueprint, costs);
-                    geode_savings += old_geo - revised_geo;
                     if revised_geo > most_geodes_produced {
                         most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
                         new_states.insert(successor);
-                        insertions += 1;
                     }
                 }
             }
-            println!("minute {minute}: new states: {} ({insertions}) (geode savings: {geode_savings})", new_states.len());
             states.push(new_states);
         }
         Self {states}
