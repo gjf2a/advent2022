@@ -1,4 +1,4 @@
-use std::{iter::zip, collections::HashSet, cmp::max};
+use std::{iter::zip, collections::HashSet, cmp::{max, min}};
 
 use advent_code_lib::{all_lines, all_nums_from, simpler_main};
 use enum_iterator::{all, Sequence};
@@ -8,12 +8,17 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let costs = Costs::from_file(filename)?;
         println!("Part 1: {}", part1(&costs));
+        println!("Part 2: {}", part2(&costs));
         Ok(())
     })
 }
 
 pub fn part1(costs: &Costs) -> usize {
     costs.part_1_score(24)
+}
+
+pub fn part2(costs: &Costs) -> usize {
+    costs.part_2_score(32)
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Enum, Sequence)]
@@ -128,6 +133,18 @@ impl Costs {
             let score = id * geodes;
             println!("Blueprint {id} geodes: {geodes} ({score})");
             total += score;
+        }
+        total
+    }
+
+    pub fn part_2_score(&self, minutes: usize) -> usize {
+        let mut total = 1;
+        for blueprint in 0..min(3, self.table.len()) {
+            let table = BlueprintStateTable::after(blueprint, self, minutes);
+            let id = blueprint + 1;
+            let geodes = table.geodes();
+            println!("Blueprint {id} geodes: {geodes}");
+            total *= geodes;
         }
         total
     }
