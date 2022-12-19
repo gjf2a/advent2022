@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BinaryHeap},
+    collections::{BTreeMap, BinaryHeap, BTreeSet},
     fmt::Display,
 };
 
@@ -11,7 +11,7 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let tunnels = TunnelGraph::from_file(filename)?;
         println!("Part 1: {}", part1(&tunnels));
-        println!("Part 1: {}", part2(&tunnels));
+        println!("Part 2: {}", part2(&tunnels));
         Ok(())
     })
 }
@@ -28,6 +28,7 @@ pub fn part2(tunnels: &TunnelGraph) -> usize {
 
 fn conduct_search(tunnels: &TunnelGraph, start: PressureNode) -> usize {
     let mut best = 0;
+    let mut visited = BTreeSet::new();
     let mut queue = PressureQueue::new();
     queue.enqueue(&start);
 
@@ -38,10 +39,13 @@ fn conduct_search(tunnels: &TunnelGraph, start: PressureNode) -> usize {
             for i in 0..s.explorers.len() {
                 for successor in options.iter() {
                     if let Some(node) = s.successor(i, successor.as_str(), tunnels) {
-                        if node.total_pressure > best {
-                            best = node.total_pressure;
+                        if !visited.contains(&node) {
+                            visited.insert(node.clone());
+                            if node.total_pressure > best {
+                                best = node.total_pressure;
+                            }
+                            q.enqueue(&node);
                         }
-                        q.enqueue(&node);
                     }
                 }
             }
@@ -67,10 +71,6 @@ fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<S
     }
     values.iter().sum::<usize>() * minutes_left
 }
-
-/*fn potential2(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
-    0
-}*/
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 struct ExplorerState {
