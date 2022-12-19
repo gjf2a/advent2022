@@ -1,4 +1,4 @@
-use std::{iter::zip, collections::HashSet};
+use std::{iter::zip, collections::HashSet, cmp::max};
 
 use advent_code_lib::{all_lines, all_nums_from, simpler_main};
 use enum_iterator::{all, Sequence};
@@ -41,10 +41,14 @@ impl BlueprintStateTable {
         for minute in 1..=minutes {
             let mut new_states = HashSet::new();
             let mut insertions = 0;
+            let mut most_geodes_produced = 0;
             for state in states[minute - 1].iter() {
                 for successor in state.successors(blueprint, costs) {
-                    new_states.insert(successor);
-                    insertions += 1;
+                    if successor.geode_production_upper_bound(minutes - minute) > most_geodes_produced {
+                        most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
+                        new_states.insert(successor);
+                        insertions += 1;
+                    }
                 }
             }
             println!("minute {minute}: new states: {} ({insertions})", new_states.len());
@@ -54,7 +58,7 @@ impl BlueprintStateTable {
     }
 
     pub fn geodes(&self) -> usize {
-        self.states.last().unwrap().iter().map(|s| s.mined_minerals[Mineral::Geode]).max().unwrap()
+        self.states.last().unwrap().iter().map(|s| s.mined_minerals[Mineral::Geode]).max().unwrap_or(0)
     }
 }
 
@@ -92,6 +96,10 @@ impl State {
         for robot in all::<Mineral>() {
             self.mined_minerals[robot] += self.robot_count[robot];
         }
+    }
+
+    pub fn geodes_mined(&self) -> usize {
+        self.mined_minerals[Mineral::Geode]
     }
 
     pub fn geode_production_upper_bound(&self, minutes_left: usize) -> usize {
