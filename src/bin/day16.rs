@@ -11,26 +11,38 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let tunnels = TunnelGraph::from_file(filename)?;
         println!("Part 1: {}", part1(&tunnels));
+        println!("Part 1: {}", part2(&tunnels));
         Ok(())
     })
 }
 
 pub fn part1(tunnels: &TunnelGraph) -> usize {
+    let start = PressureNode::start_at("AA", 30, false);
+    conduct_search(tunnels, start)
+}
+
+pub fn part2(tunnels: &TunnelGraph) -> usize {
+    let start = PressureNode::start_at("AA", 26, true);
+    conduct_search(tunnels, start)
+}
+
+fn conduct_search(tunnels: &TunnelGraph, start: PressureNode) -> usize {
     let mut best = 0;
     let mut queue = PressureQueue::new();
-    let start = PressureNode::start_at("AA", 30);
     queue.enqueue(&start);
 
     let result = search(queue, |s, q| {
         let options = s.successors(tunnels);
-        let potential = potential(tunnels, s.minutes_left, &options);
+        let potential = potential(tunnels, s.min_minutes_left(), &options);
         if s.total_pressure + potential >= best {
-            for successor in options.iter() {
-                if let Some(node) = s.successor(successor.as_str(), tunnels) {
-                    if node.total_pressure > best {
-                        best = node.total_pressure;
+            for i in 0..s.explorers.len() {
+                for successor in options.iter() {
+                    if let Some(node) = s.successor(i, successor.as_str(), tunnels) {
+                        if node.total_pressure > best {
+                            best = node.total_pressure;
+                        }
+                        q.enqueue(&node);
                     }
-                    q.enqueue(&node);
                 }
             }
         }
@@ -56,40 +68,59 @@ fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<S
     values.iter().sum::<usize>() * minutes_left
 }
 
-fn potential2(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
+/*fn potential2(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
     0
+}*/
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct ExplorerState {
+    minutes_left: usize,
+    at: String,
 }
 
 #[derive(Default, Clone, Eq, PartialEq, Ord, Debug)]
 struct PressureNode {
-    at: String,
-    minutes_left: usize,
+    explorers: Vec<ExplorerState>,
     opened: BTreeMap<String, usize>,
     total_pressure: usize,
 }
 
 impl PressureNode {
-    fn start_at(start: &str, minutes: usize) -> Self {
+    fn start_at(start: &str, minutes_left: usize, elephant_help: bool) -> Self {
         let mut result = Self::default();
-        result.at = start.to_owned();
-        result.minutes_left = minutes;
+        result.explorers.push(ExplorerState {
+            at: start.to_owned(),
+            minutes_left,
+        });
+        if elephant_help {
+            result.explorers.push(ExplorerState {
+                at: start.to_owned(),
+                minutes_left,
+            });
+        }
         result
     }
 
-    fn successor(&self, valve: &str, tunnels: &TunnelGraph) -> Option<PressureNode> {
+    fn min_minutes_left(&self) -> usize {
+        self.explorers.iter().map(|ex| ex.minutes_left).min().unwrap()
+    }
+
+    fn successor(&self, explorer: usize, valve: &str, tunnels: &TunnelGraph) -> Option<PressureNode> {
         let moves = tunnels
             .valve_activation_times
-            .get(&self.at)
+            .get(&self.explorers[explorer].at)
             .and_then(|m| m.get(valve))
             .copied()
             .unwrap();
-        if moves <= self.minutes_left {
+        if moves <= self.explorers[explorer].minutes_left {
             let mut opened = self.opened.clone();
-            let pressure_from = (self.minutes_left - moves) * tunnels.pressure_for(valve);
+            let pressure_from = (self.explorers[explorer].minutes_left - moves) * tunnels.pressure_for(valve);
             opened.insert(valve.to_string(), pressure_from);
+            let mut updated_explorers = self.explorers.clone();
+            updated_explorers[explorer].at = valve.to_string();
+            updated_explorers[explorer].minutes_left -= moves;
             Some(PressureNode {
-                at: valve.to_string(),
-                minutes_left: self.minutes_left - moves,
+                explorers: updated_explorers,
                 opened,
                 total_pressure: self.total_pressure + pressure_from,
             })
@@ -113,7 +144,7 @@ impl PartialOrd for PressureNode {
             Some(core::cmp::Ordering::Equal) => {}
             ord => return ord,
         }
-        self.minutes_left.partial_cmp(&other.minutes_left)
+        self.explorers.partial_cmp(&other.explorers)
     }
 }
 
