@@ -268,8 +268,8 @@ mod tests {
     pub fn test() {
         let tunnels = TunnelGraph::from_file("ex/day16.txt").unwrap();
         assert_eq!(
-            format!("{:?}", tunnels.activation_times_from(tunnels.start_valve())),
-            r#"{"AA": 1, "BB": 2, "CC": 3, "DD": 2, "EE": 3, "FF": 4, "GG": 5, "HH": 6, "II": 2, "JJ": 3}"#
+            tunnels.activation_times_from(tunnels.start_valve()),
+            vec![1, 2, 3, 2, 3, 4, 5, 6, 2, 3]
         );
     }
 }
