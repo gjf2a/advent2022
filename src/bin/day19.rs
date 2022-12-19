@@ -47,16 +47,20 @@ impl BlueprintStateTable {
             let mut new_states = HashSet::new();
             let mut insertions = 0;
             let mut most_geodes_produced = 0;
+            let mut geode_savings = 0;
             for state in states[minute - 1].iter() {
                 for successor in state.successors(blueprint, costs) {
-                    if successor.geode_production_upper_bound(minutes - minute) > most_geodes_produced {
+                    let old_geo = successor.original_geode(minutes - minute);
+                    let revised_geo = successor.geode_production_upper_bound(minutes - minute, blueprint, costs);
+                    geode_savings += old_geo - revised_geo;
+                    if revised_geo > most_geodes_produced {
                         most_geodes_produced = max(successor.geodes_mined(), most_geodes_produced);
                         new_states.insert(successor);
                         insertions += 1;
                     }
                 }
             }
-            println!("minute {minute}: new states: {} ({insertions})", new_states.len());
+            println!("minute {minute}: new states: {} ({insertions}) (geode savings: {geode_savings})", new_states.len());
             states.push(new_states);
         }
         Self {states}
@@ -69,7 +73,6 @@ impl BlueprintStateTable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct State {
-    elapsed_minutes: usize,
     robot_count: EnumMap<Mineral, usize>,
     mined_minerals: EnumMap<Mineral, usize>,
 }
@@ -78,22 +81,27 @@ impl Default for State {
     fn default() -> Self {
         let mut robot_count = EnumMap::default();
         robot_count[Mineral::Ore] = 1;
-        State {elapsed_minutes: 0, robot_count, mined_minerals: EnumMap::default()}
+        State {robot_count, mined_minerals: EnumMap::default()}
     }
 }
 
 impl State {
     pub fn successors(&self, blueprint: usize, costs: &Costs) -> Vec<Self> {
-        let mut result = vec![self.clone()];
-        result[0].mine();
-        for robot in all::<Mineral>() {
+        let mut result = vec![];
+        for robot in [Mineral::Geode, Mineral::Obsidian, Mineral::Clay, Mineral::Ore] {
             if let Some(after_use) = costs.construct(blueprint, robot, &self.mined_minerals) {
-                let mut successor = Self {elapsed_minutes: self.elapsed_minutes, robot_count: self.robot_count.clone(), mined_minerals: after_use};
+                let mut successor = Self {robot_count: self.robot_count.clone(), mined_minerals: after_use};
                 successor.mine();
                 successor.robot_count[robot] += 1;
-                result.push(successor);
+                match robot {
+                    Mineral::Geode | Mineral::Obsidian => {return vec![successor]},
+                    _ => {result.push(successor);}
+                }
             }
         }
+        let mut no_build = self.clone();
+        no_build.mine();
+        result.push(no_build);
         result
     }
 
@@ -107,14 +115,30 @@ impl State {
         self.mined_minerals[Mineral::Geode]
     }
 
-    pub fn geode_production_upper_bound(&self, minutes_left: usize) -> usize {
-        let mut current_geodes = self.mined_minerals[Mineral::Geode];
-        let mut current_geode_robots = self.robot_count[Mineral::Geode];
+    pub fn production_upper_bound_for(&self, max_extra_robots: usize, mineral: Mineral, minutes_left: usize) -> usize {
+        let mut current_mineral = self.mined_minerals[mineral];
+        let mut current_robots = self.robot_count[mineral];
         for _ in 0..minutes_left {
-            current_geodes += current_geode_robots;
-            current_geode_robots += 1;
+            current_mineral += current_robots;
+            if current_robots < self.robot_count[mineral] + max_extra_robots {
+                current_robots += 1;
+            }
         }        
-        current_geodes
+        current_mineral
+    }
+
+    pub fn original_geode(&self, minutes_left: usize) -> usize {
+        self.production_upper_bound_for(minutes_left, Mineral::Geode, minutes_left)
+    }
+
+    pub fn geode_production_upper_bound(&self, minutes_left: usize, blueprint: usize, costs: &Costs) -> usize {
+        let ore_upper_bound = self.production_upper_bound_for(0, Mineral::Ore, minutes_left);
+        let max_clay_robots = ore_upper_bound / costs.table[blueprint][Mineral::Clay][Mineral::Ore];
+        let clay_upper_bound = self.production_upper_bound_for(max_clay_robots, Mineral::Clay, minutes_left);
+        let max_obsidian_robots = clay_upper_bound / costs.table[blueprint][Mineral::Obsidian][Mineral::Clay];
+        let obsidian_upper_bound = self.production_upper_bound_for(max_obsidian_robots, Mineral::Obsidian, minutes_left);
+        let max_geode_robots = obsidian_upper_bound / costs.table[blueprint][Mineral::Geode][Mineral::Obsidian];
+        self.production_upper_bound_for(max_geode_robots, Mineral::Geode, minutes_left)
     }
 }
 
