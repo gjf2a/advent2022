@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, BinaryHeap, BTreeSet},
-    fmt::Display,
+    fmt::Display, iter::repeat,
 };
 
 use advent_code_lib::{
@@ -17,12 +17,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 pub fn part1(tunnels: &TunnelGraph) -> usize {
-    let start = PressureNode::start_at("AA", 30, false);
+    let start = PressureNode::start_at(tunnels, 30, false);
     conduct_search(tunnels, start)
 }
 
 pub fn part2(tunnels: &TunnelGraph) -> usize {
-    let start = PressureNode::start_at("AA", 26, true);
+    let start = PressureNode::start_at(tunnels, 26, true);
     conduct_search(tunnels, start)
 }
 
@@ -38,7 +38,7 @@ fn conduct_search(tunnels: &TunnelGraph, start: PressureNode) -> usize {
         if s.total_pressure + potential >= best {
             for i in 0..s.explorers.len() {
                 for successor in options.iter() {
-                    if let Some(node) = s.successor(i, successor.as_str(), tunnels) {
+                    if let Some(node) = s.successor(i, *successor, tunnels) {
                         if !visited.contains(&node) {
                             visited.insert(node.clone());
                             if node.total_pressure > best {
@@ -60,10 +60,10 @@ fn conduct_search(tunnels: &TunnelGraph, start: PressureNode) -> usize {
     best
 }
 
-fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<String>) -> usize {
+fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<usize>) -> usize {
     let mut values: Vec<usize> = remaining_nodes
         .iter()
-        .map(|n| tunnels.pressure_for(n.as_str()))
+        .map(|n| tunnels.pressure_for(*n))
         .collect();
     values.sort_by(|a, b| b.cmp(a));
     while values.len() > minutes_left {
@@ -75,29 +75,31 @@ fn potential(tunnels: &TunnelGraph, minutes_left: usize, remaining_nodes: &Vec<S
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 struct ExplorerState {
     minutes_left: usize,
-    at: String,
+    at: usize,
 }
 
 #[derive(Default, Clone, Eq, PartialEq, Ord, Debug)]
 struct PressureNode {
     explorers: Vec<ExplorerState>,
-    opened: BTreeMap<String, usize>,
+    opened: Vec<usize>,
     total_pressure: usize,
 }
 
 impl PressureNode {
-    fn start_at(start: &str, minutes_left: usize, elephant_help: bool) -> Self {
+    fn start_at(tunnels: &TunnelGraph, minutes_left: usize, elephant_help: bool) -> Self {
+        let start = tunnels.start_valve();
         let mut result = Self::default();
         result.explorers.push(ExplorerState {
-            at: start.to_owned(),
+            at: start,
             minutes_left,
         });
         if elephant_help {
             result.explorers.push(ExplorerState {
-                at: start.to_owned(),
+                at: start,
                 minutes_left,
             });
         }
+        result.opened = repeat(0).take(tunnels.names.len()).collect();
         result
     }
 
@@ -105,19 +107,14 @@ impl PressureNode {
         self.explorers.iter().map(|ex| ex.minutes_left).min().unwrap()
     }
 
-    fn successor(&self, explorer: usize, valve: &str, tunnels: &TunnelGraph) -> Option<PressureNode> {
-        let moves = tunnels
-            .valve_activation_times
-            .get(&self.explorers[explorer].at)
-            .and_then(|m| m.get(valve))
-            .copied()
-            .unwrap();
+    fn successor(&self, explorer: usize, valve: usize, tunnels: &TunnelGraph) -> Option<PressureNode> {
+        let moves = tunnels.valve_activation_times[self.explorers[explorer].at][valve];
         if moves <= self.explorers[explorer].minutes_left {
             let mut opened = self.opened.clone();
             let pressure_from = (self.explorers[explorer].minutes_left - moves) * tunnels.pressure_for(valve);
-            opened.insert(valve.to_string(), pressure_from);
+            opened[valve] = pressure_from;
             let mut updated_explorers = self.explorers.clone();
-            updated_explorers[explorer].at = valve.to_string();
+            updated_explorers[explorer].at = valve;
             updated_explorers[explorer].minutes_left -= moves;
             Some(PressureNode {
                 explorers: updated_explorers,
@@ -129,11 +126,10 @@ impl PressureNode {
         }
     }
 
-    fn successors(&self, tunnels: &TunnelGraph) -> Vec<String> {
+    fn successors(&self, tunnels: &TunnelGraph) -> Vec<usize> {
         tunnels
             .valves()
-            .filter(|valve| !self.opened.contains_key(*valve) && tunnels.pressure_for(*valve) > 0)
-            .cloned()
+            .filter(|valve| self.opened[*valve] == 0 && tunnels.pressure_for(*valve) > 0)
             .collect()
     }
 }
@@ -173,9 +169,11 @@ impl SearchQueue<PressureNode> for PressureQueue {
 
 #[derive(Default, Clone, Debug)]
 pub struct TunnelGraph {
-    valve2flow: BTreeMap<String, usize>,
-    valve2tunnels: BTreeMap<String, Vec<String>>,
-    valve_activation_times: BTreeMap<String, BTreeMap<String, usize>>,
+    names: Vec<String>,
+    ids: BTreeMap<String, usize>,
+    valve2flow: Vec<usize>,
+    valve2tunnels: Vec<Vec<usize>>,
+    valve_activation_times: Vec<Vec<usize>>,
 }
 
 impl Display for TunnelGraph {
@@ -212,40 +210,52 @@ fn parse_rate(rate: &str) -> usize {
 impl TunnelGraph {
     pub fn from_file(filename: &str) -> anyhow::Result<Self> {
         let mut result = TunnelGraph::default();
+        let mut tunnel_list = Vec::new();
         for line in all_lines(filename)? {
             let mut parts = line.split_whitespace();
             let name = parts.by_ref().skip(1).next().unwrap();
             let rate = parse_rate(parts.by_ref().skip(2).next().unwrap());
-            let tunnels = parts.by_ref().skip(4).map(|s| s[..2].to_string()).collect();
-            result.valve2flow.insert(name.to_string(), rate);
-            result.valve2tunnels.insert(name.to_string(), tunnels);
+            let tunnels: Vec<String> = parts.by_ref().skip(4).map(|s| s[..2].to_string()).collect();
+            
+            let id_num = result.names.len();
+            result.ids.insert(name.to_string(), id_num);
+            result.names.push(name.to_string());
+            result.valve2flow.push(rate);
+            tunnel_list.push(tunnels);
+        }
+        for tunnels in tunnel_list {
+            let tunnels = tunnels.iter().map(|s| result.ids.get(s).copied().unwrap()).collect();
+            result.valve2tunnels.push(tunnels);
         }
         result.valve_activation_times = result
             .valves()
-            .map(|valve| (valve.clone(), result.activation_times_from(valve)))
+            .map(|valve| result.activation_times_from(valve))
             .collect();
         Ok(result)
     }
 
-    pub fn pressure_for(&self, valve: &str) -> usize {
-        self.valve2flow.get(valve).copied().unwrap()
+    pub fn start_valve(&self) -> usize {
+        self.ids.get("AA").copied().unwrap()
     }
 
-    pub fn valves(&self) -> impl Iterator<Item = &String> {
-        self.valve2flow.keys()
+    pub fn pressure_for(&self, valve: usize) -> usize {
+        self.valve2flow[valve]
     }
 
-    fn activation_times_from(&self, src: &str) -> BTreeMap<String, usize> {
-        let parents = breadth_first_search(&src.to_string(), |s, q| {
-            for neighbor in self.valve2tunnels.get(s).unwrap() {
+    pub fn valves(&self) -> impl Iterator<Item = usize> {
+        0..self.valve2flow.len()
+    }
+
+    fn activation_times_from(&self, src: usize) -> Vec<usize> {
+        let parents = breadth_first_search(&src, |s, q| {
+            for neighbor in self.valve2tunnels[*s].iter() {
                 q.enqueue(neighbor);
             }
             ContinueSearch::Yes
         });
 
         self.valves()
-            .filter_map(|valve| parents.path_back_from(valve).map(|p| (valve.clone(), p)))
-            .map(|(v, p)| (v, p.len()))
+            .filter_map(|valve| parents.path_back_from(&valve).map(|p| p.len()))
             .collect()
     }
 }
@@ -258,7 +268,7 @@ mod tests {
     pub fn test() {
         let tunnels = TunnelGraph::from_file("ex/day16.txt").unwrap();
         assert_eq!(
-            format!("{:?}", tunnels.activation_times_from("AA")),
+            format!("{:?}", tunnels.activation_times_from(tunnels.start_valve())),
             r#"{"AA": 1, "BB": 2, "CC": 3, "DD": 2, "EE": 3, "FF": 4, "GG": 5, "HH": 6, "II": 2, "JJ": 3}"#
         );
     }
