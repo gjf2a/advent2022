@@ -3,10 +3,13 @@ use std::{ops::Index, collections::{VecDeque, BTreeSet}};
 use advent_code_lib::{all_lines, simpler_main};
 use bare_metal_modulo::*;
 
+const DECRYPTION_KEY: i64 = 811589153;
+
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let nums = TrackedNums::from_file(filename)?;
         println!("Part 1: {}", part1(&nums));
+        println!("Part 2: {}", part2(&nums));
         Ok(())
     })
 }
@@ -14,11 +17,15 @@ fn main() -> anyhow::Result<()> {
 pub fn part1(nums: &TrackedNums) -> i64 {
     let mut nums = nums.clone();
     nums.mix();
-    let zero_index = nums.find(0).unwrap();
-    (1000..=3000)
-        .step_by(1000)
-        .map(|n| nums[zero_index + n])
-        .sum()
+    nums.coordinate_sum()
+}
+
+pub fn part2(nums: &TrackedNums) -> i64 {
+    let mut nums = TrackedNums {nums: nums.nums.iter().map(|(n, i)| (*n * DECRYPTION_KEY, *i)).collect(), index2num: nums.index2num.clone()};
+    for _ in 0..10 {
+        nums.mix();
+    }
+    nums.coordinate_sum()
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +39,14 @@ impl TrackedNums {
         let nums: VecDeque<(i64, usize)> = load_nums(filename)?.iter().copied().enumerate().map(|(n,i)| (i, n)).collect();
         let index2num: VecDeque<usize> = (0..nums.len()).collect();
         Ok(Self {nums, index2num })
+    }
+
+    pub fn coordinate_sum(&self) -> i64 {
+        let zero_index = self.find(0).unwrap();
+        (1000..=3000)
+            .step_by(1000)
+            .map(|n| self[zero_index + n])
+            .sum()
     }
 
     pub fn assert_unique(&self) {
