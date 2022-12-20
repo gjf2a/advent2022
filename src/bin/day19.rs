@@ -191,7 +191,9 @@ impl State {
                 successor.mine();
                 successor.robot_count[robot] += 1;
                 match robot {
-                    Mineral::Geode | Mineral::Obsidian => return vec![successor],
+                    Mineral::Geode => {
+                        return vec![successor];
+                    }
                     _ => {
                         result.push(successor);
                     }
