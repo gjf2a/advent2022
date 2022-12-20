@@ -46,6 +46,7 @@ impl TrackedNums {
         (1000..=3000)
             .step_by(1000)
             .map(|n| self[zero_index + n])
+            .inspect(|n| println!("{n}"))
             .sum()
     }
 
@@ -69,7 +70,9 @@ impl TrackedNums {
 
     pub fn rotate(&mut self, start_index: usize) {
         let i = self.index2num[start_index];
-        let mut steps_left = ModNum::new(self[i].abs(), self.len() as i64).a();
+        // A worthy but incorrect attempt
+        //let mut steps_left = ModNum::new(self[i].abs(), self.len() as i64).a();
+        let mut steps_left = self[i].abs();
         let update = if self[i] < 0 {-1} else {1};
         let mut current = i;
         while steps_left > 0 {
