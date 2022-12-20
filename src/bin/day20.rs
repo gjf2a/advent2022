@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let nums = TrackedNums::from_file(filename)?;
         println!("Part 1: {}", part1(&nums));
-        println!("Part 2: {}", part2(&nums));
+        //println!("Part 2: {}", part2(&nums));
         Ok(())
     })
 }
@@ -69,7 +69,7 @@ impl TrackedNums {
 
     pub fn rotate(&mut self, start_index: usize) {
         let i = self.index2num[start_index];
-        let mut steps_left = self[i].abs();
+        let mut steps_left = ModNum::new(self[i].abs(), self.len() as i64).a();
         let update = if self[i] < 0 {-1} else {1};
         let mut current = i;
         while steps_left > 0 {
