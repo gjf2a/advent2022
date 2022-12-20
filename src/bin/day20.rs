@@ -1,4 +1,4 @@
-use std::{ops::Index, collections::{VecDeque, BTreeSet}};
+use std::{ops::Index, collections::{VecDeque, BTreeSet, BTreeMap}};
 
 use advent_code_lib::{all_lines, simpler_main};
 use bare_metal_modulo::*;
@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let nums = TrackedNums::from_file(filename)?;
         println!("Part 1: {}", part1(&nums));
-        //println!("Part 2: {}", part2(&nums));
+        println!("Part 2: {}", part2(&nums));
         Ok(())
     })
 }
@@ -21,11 +21,101 @@ pub fn part1(nums: &TrackedNums) -> i64 {
 }
 
 pub fn part2(nums: &TrackedNums) -> i64 {
-    let mut nums = TrackedNums {nums: nums.nums.iter().map(|(n, i)| (*n * DECRYPTION_KEY, *i)).collect(), index2num: nums.index2num.clone()};
+    let mut nums = nums.clone();
+    nums.scalar_multiply(DECRYPTION_KEY);
     for _ in 0..10 {
         nums.mix();
     }
     nums.coordinate_sum()
+}
+
+#[derive(Debug, Clone)]
+pub struct FromZero {
+    order_of_arrival: BTreeMap<usize,usize>,
+    order_from_zero: VecDeque<(i64, usize)>,
+}
+
+impl Index<usize> for FromZero {
+    type Output = i64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let index = ModNum::new(index, self.len());
+        &self.order_from_zero[index.a()].0
+    }
+}
+
+impl FromZero {
+    pub fn coordinate_sum(&self) -> i64 {
+        (1000..=3000)
+            .step_by(1000)
+            .map(|n| self[n])
+            .inspect(|n| println!("{n}"))
+            .sum()
+    }
+
+    pub fn mix(&mut self) {
+        for arrival in 0..self.len() {
+            self.rotate(arrival);
+        }
+    }
+
+    pub fn scalar_multiply(&mut self, scalar: i64) {
+        for (v, _) in self.order_from_zero.iter_mut() {
+            *v *= scalar;
+        }
+    }
+
+    fn rotate(&mut self, arrival: usize) {
+        let from_zero = self.order_of_arrival.get(&arrival).unwrap();
+        let (value, _) = self.order_from_zero[*from_zero];
+        let direction = if value < 0 {-1} else {1};
+        let mut i = ModNum::new(*from_zero as isize, self.len() as isize);
+        for _ in 0..value.abs() {
+            let origin = i.a() as usize;
+            i += direction;
+            if i < 0 {
+                if direction < 0 {
+                    let popped = self.order_from_zero.pop_front().unwrap();
+                    self.order_from_zero.push_back(popped);
+                    for (_,i) in self.order_of_arrival.iter_mut() {
+                        *i -= 1;
+                    }
+                } else {
+                    let popped = self.order_from_zero.pop_back().unwrap();
+                    self.order_from_zero.push_front(popped);
+                    for (_,i) in self.order_of_arrival.iter_mut() {
+                        *i += 1;
+                    }
+                }
+            } else {
+                let destination = i.a() as usize;
+                *self.order_of_arrival.get_mut(&self.order_from_zero[origin].1).unwrap() = destination;
+                *self.order_of_arrival.get_mut(&self.order_from_zero[destination].1).unwrap() = origin;
+                self.order_from_zero.swap(origin, destination);
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        assert_eq!(self.order_from_zero.len(), self.order_of_arrival.len());
+        self.order_from_zero.len()
+    }
+
+    pub fn from_file(filename: &str) -> anyhow::Result<Self> {
+        let nums: Vec<i64> = all_lines(filename)?.map(|n| n.parse().unwrap()).collect();
+        let mut zero = ModNum::new(0, nums.len());
+        while nums[zero.a()] != 0 {
+            zero += 1;
+        }
+        let mut order_from_zero = VecDeque::new();
+        let mut order_of_arrival = BTreeMap::new();
+        while order_from_zero.len() < nums.len() {
+            order_of_arrival.insert(zero.a(), order_from_zero.len());
+            order_from_zero.push_back((nums[zero.a()], zero.a()));
+            zero += 1;
+        }
+        Ok(Self {order_from_zero, order_of_arrival})
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +129,12 @@ impl TrackedNums {
         let nums: VecDeque<(i64, usize)> = load_nums(filename)?.iter().copied().enumerate().map(|(n,i)| (i, n)).collect();
         let index2num: VecDeque<usize> = (0..nums.len()).collect();
         Ok(Self {nums, index2num })
+    }
+
+    pub fn scalar_multiply(&mut self, scalar: i64) {
+        for (num,_) in self.nums.iter_mut() {
+            *num *= scalar;
+        }
     }
 
     pub fn coordinate_sum(&self) -> i64 {
@@ -71,8 +167,8 @@ impl TrackedNums {
     pub fn rotate(&mut self, start_index: usize) {
         let i = self.index2num[start_index];
         // A worthy but incorrect attempt
-        //let mut steps_left = ModNum::new(self[i].abs(), self.len() as i64).a();
-        let mut steps_left = self[i].abs();
+        let mut steps_left = ModNum::new(self[i].abs(), self.len() as i64 - 1).a();
+        //let mut steps_left = self[i].abs();
         let update = if self[i] < 0 {-1} else {1};
         let mut current = i;
         while steps_left > 0 {
@@ -120,24 +216,9 @@ mod tests {
     fn test_mix() {
         let mut nums = TrackedNums::from_file("ex/day20.txt").unwrap();
         nums.mix();
-        assert_eq!(vec![1, 2, -3, 4, 0, 3, -2], nums.nums());
-    }
-
-    #[test]
-    fn test_rotate() {
-        let mut nums = TrackedNums::from_file("ex/day20.txt").unwrap();
-        for (i, expected) in [
-            vec![2, 1, -3, 3, -2, 0, 4],
-            vec![1, -3, 2, 3, -2, 0, 4],
-            vec![1, 2, 3, -2, -3, 0, 4],
-            vec![1, 2, -2, -3, 0, 3, 4],
-            vec![1, 2, -3, 0, 3, 4, -2],
-            vec![1, 2, -3, 0, 3, 4, -2],
-            vec![1, 2, -3, 4, 0, 3, -2],
-        ].iter().enumerate() {
-            nums.rotate(i);
-            assert_eq!(&nums.nums(), expected);
-        }
+        assert_eq!(vec![-2, 1, 2, -3, 4, 0, 3], nums.nums());
+        nums.mix();
+        println!("{:?}", nums.nums());
     }
 }
 
