@@ -108,19 +108,28 @@ impl MonkeyTroop {
 
         let mut unknown: VecDeque<String> = unknown.iter().cloned().collect();
         while let Some(candidate) = unknown.pop_front() {
-            let lhs = self.term2lefts.get(candidate.as_str()).unwrap();
-            assert_eq!(lhs.len(), 1);
-            let left_monkey = self.monkeys.get(lhs[0].as_str()).unwrap();
-            let (op_left, op_right) = left_monkey.names().unwrap();
-            assert!(op_left == candidate || op_right == candidate);
-            if op_left == candidate && known.contains_key(op_right.as_str()) && known.contains_key(lhs[0].as_str()) {
-                let value = left_monkey.sym().unwrap().solve_left(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_right.as_str()).unwrap());
-                known.insert(candidate, value);
-            } else if op_right == candidate && known.contains_key(op_left.as_str()) && known.contains_key(lhs[0].as_str()) {
-                let value = left_monkey.sym().unwrap().solve_right(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_left.as_str()).unwrap());
-                known.insert(candidate, value);
-            } else {
-                unknown.push_back(candidate);
+            let candidate_monkey = self.monkeys.get(candidate.as_str()).unwrap();
+            if let Some((candidate_left, candidate_right)) = candidate_monkey.names() {
+                if known.contains_key(candidate_left.as_str()) && known.contains_key(candidate_right.as_str()) {
+                    let value = candidate_monkey.eval(self);
+                    known.insert(candidate.clone(), value);
+                }
+            }
+            if !known.contains_key(candidate.as_str()) {
+                let lhs = self.term2lefts.get(candidate.as_str()).unwrap();
+                assert_eq!(lhs.len(), 1);
+                let left_monkey = self.monkeys.get(lhs[0].as_str()).unwrap();
+                let (op_left, op_right) = left_monkey.names().unwrap();
+                assert!(op_left == candidate || op_right == candidate);
+                if op_left == candidate && known.contains_key(op_right.as_str()) && known.contains_key(lhs[0].as_str()) {
+                    let value = left_monkey.sym().unwrap().solve_left(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_right.as_str()).unwrap());
+                    known.insert(candidate, value);
+                } else if op_right == candidate && known.contains_key(op_left.as_str()) && known.contains_key(lhs[0].as_str()) {
+                    let value = left_monkey.sym().unwrap().solve_right(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_left.as_str()).unwrap());
+                    known.insert(candidate, value);
+                } else {
+                    unknown.push_back(candidate);
+                }
             }
         }
         *known.get("humn").unwrap()
