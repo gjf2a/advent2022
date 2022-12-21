@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeSet, VecDeque},
-    ops::Index,
-};
+use std::{collections::BTreeSet, ops::Index};
 
 use advent_code_lib::{all_lines, simpler_main};
 use bare_metal_modulo::*;
@@ -34,19 +31,19 @@ pub fn part2(nums: &TrackedNums) -> i64 {
 
 #[derive(Debug, Clone)]
 pub struct TrackedNums {
-    nums: VecDeque<(i64, usize)>,
-    index2num: VecDeque<usize>,
+    nums: Vec<(i64, usize)>,
+    index2num: Vec<usize>,
 }
 
 impl TrackedNums {
     pub fn from_file(filename: &str) -> anyhow::Result<Self> {
-        let nums: VecDeque<(i64, usize)> = load_nums(filename)?
+        let nums: Vec<(i64, usize)> = load_nums(filename)?
             .iter()
             .copied()
             .enumerate()
             .map(|(n, i)| (i, n))
             .collect();
-        let index2num: VecDeque<usize> = (0..nums.len()).collect();
+        let index2num: Vec<usize> = (0..nums.len()).collect();
         Ok(Self { nums, index2num })
     }
 
@@ -128,7 +125,7 @@ impl Index<usize> for TrackedNums {
     }
 }
 
-pub fn load_nums(filename: &str) -> anyhow::Result<VecDeque<i64>> {
+pub fn load_nums(filename: &str) -> anyhow::Result<Vec<i64>> {
     Ok(all_lines(filename)?
         .map(|line| line.parse().unwrap())
         .collect())
