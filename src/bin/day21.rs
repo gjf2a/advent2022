@@ -1,4 +1,7 @@
-use std::{collections::{BTreeMap, BTreeSet, VecDeque}, str::FromStr};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    str::FromStr,
+};
 
 use advent_code_lib::{all_lines, simpler_main};
 use anyhow::bail;
@@ -23,15 +26,19 @@ pub fn part2(filename: &str) -> anyhow::Result<i64> {
 
 #[derive(Clone)]
 pub struct MonkeyTroop {
-    monkeys: BTreeMap<String,Monkey>,
+    monkeys: BTreeMap<String, Monkey>,
     root_name: String,
-    term2lefts: BTreeMap<String,Vec<String>>,
+    term2lefts: BTreeMap<String, Vec<String>>,
 }
 
-fn add_left_of(on_left_of: &mut BTreeMap<String,Vec<String>>, right: &str, left: &str) {
+fn add_left_of(on_left_of: &mut BTreeMap<String, Vec<String>>, right: &str, left: &str) {
     match on_left_of.get_mut(left) {
-        Some(v) => {v.push(right.to_owned());}
-        None => {on_left_of.insert(left.to_owned(), vec![right.to_owned()]);}
+        Some(v) => {
+            v.push(right.to_owned());
+        }
+        None => {
+            on_left_of.insert(left.to_owned(), vec![right.to_owned()]);
+        }
     }
 }
 
@@ -49,13 +56,21 @@ impl MonkeyTroop {
                 3 => {
                     add_left_of(&mut term2lefts, name, formula[0].as_str());
                     add_left_of(&mut term2lefts, name, formula[2].as_str());
-                    Monkey::Oper(formula[0].clone(), formula[1].parse::<Sym>()?, formula[2].clone())
+                    Monkey::Oper(
+                        formula[0].clone(),
+                        formula[1].parse::<Sym>()?,
+                        formula[2].clone(),
+                    )
                 }
-                err => panic!("formula has {err} terms; not allowed")
+                err => panic!("formula has {err} terms; not allowed"),
             };
             monkeys.insert(name.to_owned(), monkey);
         }
-        Ok(Self {root_name: "root".to_owned(), monkeys, term2lefts})
+        Ok(Self {
+            root_name: "root".to_owned(),
+            monkeys,
+            term2lefts,
+        })
     }
 
     fn root_monkey(&self) -> Monkey {
@@ -64,7 +79,11 @@ impl MonkeyTroop {
 
     pub fn find_human_yell(&self) -> i64 {
         let (t1, t2) = self.split_troop();
-        let (human_troop, other_troop) = if t1.has_human() {(&t1, &t2)} else {(&t2, &t1)};
+        let (human_troop, other_troop) = if t1.has_human() {
+            (&t1, &t2)
+        } else {
+            (&t2, &t1)
+        };
         let goal = other_troop.evaluate_root();
         human_troop.solve_human(goal)
     }
@@ -110,7 +129,9 @@ impl MonkeyTroop {
         while let Some(candidate) = unknown.pop_front() {
             let candidate_monkey = self.monkeys.get(candidate.as_str()).unwrap();
             if let Some((candidate_left, candidate_right)) = candidate_monkey.names() {
-                if known.contains_key(candidate_left.as_str()) && known.contains_key(candidate_right.as_str()) {
+                if known.contains_key(candidate_left.as_str())
+                    && known.contains_key(candidate_right.as_str())
+                {
                     let value = candidate_monkey.eval(self);
                     known.insert(candidate.clone(), value);
                 }
@@ -121,11 +142,23 @@ impl MonkeyTroop {
                 let left_monkey = self.monkeys.get(lhs[0].as_str()).unwrap();
                 let (op_left, op_right) = left_monkey.names().unwrap();
                 assert!(op_left == candidate || op_right == candidate);
-                if op_left == candidate && known.contains_key(op_right.as_str()) && known.contains_key(lhs[0].as_str()) {
-                    let value = left_monkey.sym().unwrap().solve_left(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_right.as_str()).unwrap());
+                if op_left == candidate
+                    && known.contains_key(op_right.as_str())
+                    && known.contains_key(lhs[0].as_str())
+                {
+                    let value = left_monkey.sym().unwrap().solve_left(
+                        *known.get(lhs[0].as_str()).unwrap(),
+                        *known.get(op_right.as_str()).unwrap(),
+                    );
                     known.insert(candidate, value);
-                } else if op_right == candidate && known.contains_key(op_left.as_str()) && known.contains_key(lhs[0].as_str()) {
-                    let value = left_monkey.sym().unwrap().solve_right(*known.get(lhs[0].as_str()).unwrap(), *known.get(op_left.as_str()).unwrap());
+                } else if op_right == candidate
+                    && known.contains_key(op_left.as_str())
+                    && known.contains_key(lhs[0].as_str())
+                {
+                    let value = left_monkey.sym().unwrap().solve_right(
+                        *known.get(lhs[0].as_str()).unwrap(),
+                        *known.get(op_left.as_str()).unwrap(),
+                    );
                     known.insert(candidate, value);
                 } else {
                     unknown.push_back(candidate);
@@ -157,35 +190,41 @@ impl MonkeyTroop {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Monkey {
     Value(i64),
-    Oper(String, Sym, String)
+    Oper(String, Sym, String),
 }
 
 impl Monkey {
     pub fn eval(&self, troop: &MonkeyTroop) -> i64 {
         match self {
             Self::Value(v) => *v,
-            Self::Oper(m1, s, m2) => s.eval(troop.eval_monkey_at(m1.as_str()), troop.eval_monkey_at(m2.as_str())),
+            Self::Oper(m1, s, m2) => s.eval(
+                troop.eval_monkey_at(m1.as_str()),
+                troop.eval_monkey_at(m2.as_str()),
+            ),
         }
     }
 
-    pub fn names(&self) -> Option<(String,String)> {
+    pub fn names(&self) -> Option<(String, String)> {
         match self {
             Self::Value(_) => None,
-            Self::Oper(m1, _, m2) => Some((m1.clone(), m2.clone()))
+            Self::Oper(m1, _, m2) => Some((m1.clone(), m2.clone())),
         }
     }
 
     pub fn sym(&self) -> Option<Sym> {
         match self {
             Self::Value(_) => None,
-            Self::Oper(_, s, _) => Some(*s)
+            Self::Oper(_, s, _) => Some(*s),
         }
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Sym {
-    Plus, Minus, Times, Divide
+    Plus,
+    Minus,
+    Times,
+    Divide,
 }
 
 impl Sym {
@@ -231,8 +270,8 @@ impl FromStr for Sym {
     }
 }
 
-/* 
-Part 2 notes 
+/*
+Part 2 notes
 
 Relevant lines:
 

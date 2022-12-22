@@ -1,9 +1,17 @@
-use std::{collections::BTreeMap, cmp::{max, min}, str::FromStr, ops::RangeInclusive, fmt::Display};
+use std::{
+    cmp::{max, min},
+    collections::BTreeMap,
+    fmt::Display,
+    ops::{Index, IndexMut, RangeInclusive},
+    str::FromStr,
+};
 
-use advent_code_lib::{all_lines, simpler_main, Point, ManhattanDir};
+use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point};
 use anyhow::bail;
 
-type Pt = Point<isize,2>;
+type Pt = Point<isize, 2>;
+const CUBE_FACE_NEIGHBORS: usize = 4;
+const NUM_CUBE_FACES: usize = 6;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -47,12 +55,16 @@ pub fn map_path_from<W: PositionWarper>(filename: &str) -> anyhow::Result<(Map<W
 }
 
 pub trait PositionWarper {
-    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self;
+    fn new(map: &BTreeMap<Pt, MapCell>, num_rows: isize, num_cols: isize) -> Self;
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>>;
     fn col2rows(&self) -> &Vec<RangeInclusive<isize>>;
     fn update(&self, mover: PathPosition) -> Pt;
 
-    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn display_helper(
+        &self,
+        map: &BTreeMap<Pt, MapCell>,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         for (row, col_range) in self.row2cols().iter().enumerate() {
             for _ in 0..*col_range.start() {
                 write!(f, " ")?;
@@ -77,18 +89,32 @@ pub struct MapWrapper {
 }
 
 impl PositionWarper for MapWrapper {
-    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self {
-        let row2cols = extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
-        let col2rows = extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
-        Self {row2cols, col2rows}
+    fn new(map: &BTreeMap<Pt, MapCell>, num_rows: isize, num_cols: isize) -> Self {
+        let row2cols =
+            extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
+        let col2rows =
+            extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
+        Self { row2cols, col2rows }
     }
 
     fn update(&self, mover: PathPosition) -> Pt {
         Pt::new(match mover.orientation {
-            ManhattanDir::N => [mover.position[0], *self.col2rows[mover.position[0] as usize].end()],
-            ManhattanDir::E => [*self.row2cols[mover.position[1] as usize].start(), mover.position[1]],
-            ManhattanDir::S => [mover.position[0], *self.col2rows[mover.position[0] as usize].start()],
-            ManhattanDir::W => [*self.row2cols[mover.position[1] as usize].end(), mover.position[1]],
+            ManhattanDir::N => [
+                mover.position[0],
+                *self.col2rows[mover.position[0] as usize].end(),
+            ],
+            ManhattanDir::E => [
+                *self.row2cols[mover.position[1] as usize].start(),
+                mover.position[1],
+            ],
+            ManhattanDir::S => [
+                mover.position[0],
+                *self.col2rows[mover.position[0] as usize].start(),
+            ],
+            ManhattanDir::W => [
+                *self.row2cols[mover.position[1] as usize].end(),
+                mover.position[1],
+            ],
         })
     }
 
@@ -104,13 +130,28 @@ impl PositionWarper for MapWrapper {
 pub struct CubeWrapper {
     row2cols: Vec<RangeInclusive<isize>>,
     col2rows: Vec<RangeInclusive<isize>>,
+    cube: [CubeFace; NUM_CUBE_FACES],
 }
 
 impl PositionWarper for CubeWrapper {
-    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self {
-        let row2cols = extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
-        let col2rows = extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
-        Self {row2cols, col2rows}
+    fn new(map: &BTreeMap<Pt, MapCell>, num_rows: isize, num_cols: isize) -> Self {
+        let row2cols =
+            extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
+        let col2rows =
+            extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
+        let cube_size = (min(num_rows, num_cols) / 3) as usize;
+        let face_offset = cube_size as isize - 1;
+        assert_eq!(cube_size as isize * 3, min(num_rows, num_cols));
+        let mut cube = vec![];
+        for (row, cols) in row2cols.iter().enumerate().step_by(cube_size) {
+            for start in cols.clone().step_by(cube_size) {
+                let row = row as isize;
+                cube.push(CubeFace::new(start..=start + face_offset, row..=row + face_offset));
+            }
+        }
+        println!("{cube:?}");
+        todo!("Not done yet")
+        //Self { row2cols, col2rows }
     }
 
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
@@ -122,7 +163,60 @@ impl PositionWarper for CubeWrapper {
     }
 
     fn update(&self, mover: PathPosition) -> Pt {
-        todo!()
+        let start_face = self.cube_for(mover).unwrap();
+        let end_face = &self.cube[start_face[mover.orientation].unwrap()];
+        Pt::new(match mover.orientation {
+            ManhattanDir::N => [mover.position[0], *end_face.ys.end()],
+            ManhattanDir::E => [*end_face.xs.end(), mover.position[1]],
+            ManhattanDir::S => [mover.position[0], *end_face.ys.start()],
+            ManhattanDir::W => [*end_face.xs.start(), mover.position[1]],
+        })
+    }
+}
+
+impl CubeWrapper {
+    fn cube_for(&self, mover: PathPosition) -> Option<&CubeFace> {
+        for face in self.cube.iter() {
+            if face.contains(mover.position) {
+                return Some(face);
+            }
+        }
+        None
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CubeFace {
+    xs: RangeInclusive<isize>,
+    ys: RangeInclusive<isize>,
+    neighbors: [Option<usize>; CUBE_FACE_NEIGHBORS],
+}
+
+impl CubeFace {
+    pub fn new(xs: RangeInclusive<isize>, ys: RangeInclusive<isize>) -> Self {
+        Self {
+            xs,
+            ys,
+            neighbors: [None; CUBE_FACE_NEIGHBORS],
+        }
+    }
+
+    pub fn contains(&self, p: Pt) -> bool {
+        self.xs.contains(&p[0]) && self.ys.contains(&p[1])
+    }
+}
+
+impl Index<ManhattanDir> for CubeFace {
+    type Output = Option<usize>;
+
+    fn index(&self, index: ManhattanDir) -> &Self::Output {
+        &self.neighbors[index as usize]
+    }
+}
+
+impl IndexMut<ManhattanDir> for CubeFace {
+    fn index_mut(&mut self, index: ManhattanDir) -> &mut Self::Output {
+        &mut self.neighbors[index as usize]
     }
 }
 
@@ -132,7 +226,7 @@ pub struct Map<W> {
     warper: W,
 }
 
-impl<W:PositionWarper> Map<W> {
+impl<W: PositionWarper> Map<W> {
     pub fn from_lines(lines: Vec<String>) -> anyhow::Result<Self> {
         let mut map = BTreeMap::new();
         let mut longest_line_len = 0;
@@ -141,7 +235,11 @@ impl<W:PositionWarper> Map<W> {
             for (col, c) in line.chars().enumerate() {
                 if ['#', '.'].contains(&c) {
                     let p = Pt::new([col as isize, row as isize]);
-                    let cell = if c == '#' {MapCell::Wall} else {MapCell::Space};
+                    let cell = if c == '#' {
+                        MapCell::Wall
+                    } else {
+                        MapCell::Space
+                    };
                     map.insert(p, cell);
                 } else if c != ' ' {
                     bail!("{c} is illegal")
@@ -149,11 +247,14 @@ impl<W:PositionWarper> Map<W> {
             }
         }
         let warper = W::new(&map, lines.len() as isize, longest_line_len as isize);
-        Ok(Map {map, warper})
+        Ok(Map { map, warper })
     }
 
     pub fn start(&self) -> PathPosition {
-        PathPosition { position: Pt::new([self.warper.starting_column(), 0]), orientation: ManhattanDir::E }
+        PathPosition {
+            position: Pt::new([self.warper.starting_column(), 0]),
+            orientation: ManhattanDir::E,
+        }
     }
 
     pub fn make_move(&self, path_move: &PathMove, mover: &mut PathPosition) {
@@ -187,7 +288,13 @@ impl<W:PositionWarper> Map<W> {
     }
 }
 
-fn extract_ranges_from<F:Fn(isize,isize)->[isize;2]>(map: &BTreeMap<Pt,MapCell>, outer: isize, inner: isize, index: usize, indexer: F) -> Vec<RangeInclusive<isize>> {
+fn extract_ranges_from<F: Fn(isize, isize) -> [isize; 2]>(
+    map: &BTreeMap<Pt, MapCell>,
+    outer: isize,
+    inner: isize,
+    index: usize,
+    indexer: F,
+) -> Vec<RangeInclusive<isize>> {
     let mut result = vec![];
     for i in 0..outer {
         let mut min_v = inner;
@@ -212,25 +319,38 @@ impl<W: PositionWarper> Display for Map<W> {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MapCell {
-    Wall, Space
+    Wall,
+    Space,
 }
 
 impl Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {Self::Wall => '#', Self::Space => '.'})
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Wall => '#',
+                Self::Space => '.',
+            }
+        )
     }
 }
 
 pub struct Path {
-    path: Vec<PathMove>
+    path: Vec<PathMove>,
 }
 
 impl FromStr for Path {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut nums = s.split(['R', 'L']).map(|ns| ns.parse::<PathMove>().unwrap());
-        let mut moves = s.split(|c: char| c.is_digit(10)).filter(|ms| ms.len() > 0).map(|ms| ms.parse::<PathMove>().unwrap());
+        let mut nums = s
+            .split(['R', 'L'])
+            .map(|ns| ns.parse::<PathMove>().unwrap());
+        let mut moves = s
+            .split(|c: char| c.is_digit(10))
+            .filter(|ms| ms.len() > 0)
+            .map(|ms| ms.parse::<PathMove>().unwrap());
         let mut path = vec![];
         while let Some(num) = nums.next() {
             path.push(num);
@@ -238,7 +358,7 @@ impl FromStr for Path {
                 path.push(m);
             }
         }
-        Ok(Path{path})
+        Ok(Path { path })
     }
 }
 
@@ -253,7 +373,9 @@ impl Display for Path {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PathMove {
-    Forward(isize), Left, Right
+    Forward(isize),
+    Left,
+    Right,
 }
 
 impl FromStr for PathMove {
@@ -265,15 +387,23 @@ impl FromStr for PathMove {
             "R" => Ok(Self::Right),
             _ => match s.parse::<isize>() {
                 Ok(n) => Ok(Self::Forward(n)),
-                Err(e) => bail!(e)
-            }
+                Err(e) => bail!(e),
+            },
         }
     }
 }
 
 impl Display for PathMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {Self::Left => "L".to_owned(), Self::Right => "R".to_owned(), Self::Forward(n) => format!("{n}")})
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Left => "L".to_owned(),
+                Self::Right => "R".to_owned(),
+                Self::Forward(n) => format!("{n}"),
+            }
+        )
     }
 }
 
@@ -309,7 +439,9 @@ mod tests {
     fn test_parse() {
         let (map, path) = map_path_from::<MapWrapper>("ex/day22.txt").unwrap();
         assert_eq!(format!("{path}"), "10R5L5R10L4R5L5");
-        assert_eq!(format!("{map}"), "        ...#
+        assert_eq!(
+            format!("{map}"),
+            "        ...#
         .#..
         #...
         ....
@@ -321,6 +453,7 @@ mod tests {
         .....#..
         .#......
         ......#.
-");
+"
+        );
     }
 }
