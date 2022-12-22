@@ -7,22 +7,22 @@ type Pt = Point<isize,2>;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        let (map, path) = map_path_from(filename)?;
-        println!("Part 1: {}", part1(&map, &path));
+        println!("Part 1: {}", part1(filename)?);
         Ok(())
     })
 }
 
-pub fn part1(map: &Map, path: &Path) -> isize {
+pub fn part1(filename: &str) -> anyhow::Result<isize> {
+    let (map, path) = map_path_from::<MapWrapper>(filename)?;
     let mut mover = map.start();
     for path_move in path.path.iter() {
         map.make_move(path_move, &mut mover);
     }
     println!("{mover:?}");
-    mover.password()
+    Ok(mover.password())
 }
 
-pub fn map_path_from(filename: &str) -> anyhow::Result<(Map, Path)> {
+pub fn map_path_from<W: PositionWarper>(filename: &str) -> anyhow::Result<(Map<W>, Path)> {
     let mut lines = all_lines(filename)?;
     let mut map_lines = vec![];
     loop {
@@ -37,14 +37,60 @@ pub fn map_path_from(filename: &str) -> anyhow::Result<(Map, Path)> {
     Ok((Map::from_lines(map_lines)?, instruction_line.parse()?))
 }
 
-#[derive(Debug, Clone)]
-pub struct Map {
-    map: BTreeMap<Pt, MapCell>,
+pub trait PositionWarper {
+    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self;
+    fn update(&self, mover: PathPosition) -> Pt;
+    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result; 
+    fn starting_column(&self) -> isize;
+}
+
+pub struct MapWrapper {
     row2cols: Vec<RangeInclusive<isize>>,
     col2rows: Vec<RangeInclusive<isize>>,
 }
 
-impl Map {
+impl PositionWarper for MapWrapper {
+    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self {
+        let row2cols = extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
+        let col2rows = extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
+        Self {row2cols, col2rows}
+    }
+
+    fn update(&self, mover: PathPosition) -> Pt {
+        Pt::new(match mover.orientation {
+            ManhattanDir::N => [mover.position[0], *self.col2rows[mover.position[0] as usize].end()],
+            ManhattanDir::E => [*self.row2cols[mover.position[1] as usize].start(), mover.position[1]],
+            ManhattanDir::S => [mover.position[0], *self.col2rows[mover.position[0] as usize].start()],
+            ManhattanDir::W => [*self.row2cols[mover.position[1] as usize].end(), mover.position[1]],
+        })
+    }
+
+    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (row, col_range) in self.row2cols.iter().enumerate() {
+            for _ in 0..*col_range.start() {
+                write!(f, " ")?;
+            }
+            for col in col_range.clone() {
+                let p = Pt::new([col, row as isize]);
+                write!(f, "{}", map.get(&p).unwrap())?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+
+    fn starting_column(&self) -> isize {
+        *self.row2cols[0].start()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Map<W> {
+    map: BTreeMap<Pt, MapCell>,
+    warper: W,
+}
+
+impl<W:PositionWarper> Map<W> {
     pub fn from_lines(lines: Vec<String>) -> anyhow::Result<Self> {
         let mut map = BTreeMap::new();
         let mut longest_line_len = 0;
@@ -60,13 +106,12 @@ impl Map {
                 }
             }
         }
-        let row2cols = extract_ranges_from(&map, lines.len() as isize, longest_line_len as isize, 0, |outer, inner| [inner, outer]);
-        let col2rows = extract_ranges_from(&map, longest_line_len as isize, lines.len() as isize, 1, |outer, inner| [outer, inner]);
-        Ok(Map {map, row2cols, col2rows})
+        let warper = W::new(&map, lines.len() as isize, longest_line_len as isize);
+        Ok(Map {map, warper})
     }
 
     pub fn start(&self) -> PathPosition {
-        PathPosition { position: Pt::new([*self.row2cols[0].start(), 0]), orientation: ManhattanDir::E }
+        PathPosition { position: Pt::new([self.warper.starting_column(), 0]), orientation: ManhattanDir::E }
     }
 
     pub fn make_move(&self, path_move: &PathMove, mover: &mut PathPosition) {
@@ -87,13 +132,7 @@ impl Map {
                             *mover = next;
                         }
                     } else {
-                        let updated = match mover.orientation {
-                            ManhattanDir::N => [mover.position[0], *self.col2rows[mover.position[0] as usize].end()],
-                            ManhattanDir::E => [*self.row2cols[mover.position[1] as usize].start(), mover.position[1]],
-                            ManhattanDir::S => [mover.position[0], *self.col2rows[mover.position[0] as usize].start()],
-                            ManhattanDir::W => [*self.row2cols[mover.position[1] as usize].end(), mover.position[1]],
-                        };
-                        let next = Pt::new(updated);
+                        let next = self.warper.update(*mover);
                         let cell = self.map.get(&next).unwrap();
                         if *cell == MapCell::Space {
                             mover.position = next;
@@ -123,19 +162,9 @@ fn extract_ranges_from<F:Fn(isize,isize)->[isize;2]>(map: &BTreeMap<Pt,MapCell>,
     result
 }
 
-impl Display for Map {
+impl<W: PositionWarper> Display for Map<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (row, col_range) in self.row2cols.iter().enumerate() {
-            for _ in 0..*col_range.start() {
-                write!(f, " ")?;
-            }
-            for col in col_range.clone() {
-                let p = Pt::new([col, row as isize]);
-                write!(f, "{}", self.map.get(&p).unwrap())?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
+        self.warper.display_helper(&self.map, f)
     }
 }
 
@@ -232,11 +261,11 @@ impl PathPosition {
 
 #[cfg(test)]
 mod tests {
-    use crate::map_path_from;
+    use crate::{map_path_from, MapWrapper};
 
     #[test]
     fn test_parse() {
-        let (map, path) = map_path_from("ex/day22.txt").unwrap();
+        let (map, path) = map_path_from::<MapWrapper>("ex/day22.txt").unwrap();
         assert_eq!(format!("{path}"), "10R5L5R10L4R5L5");
         assert_eq!(format!("{map}"), "        ...#
         .#..
