@@ -8,18 +8,27 @@ type Pt = Point<isize,2>;
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
+        println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
 
-pub fn part1(filename: &str) -> anyhow::Result<isize> {
-    let (map, path) = map_path_from::<MapWrapper>(filename)?;
+fn find_password<W: PositionWarper>(filename: &str) -> anyhow::Result<isize> {
+    let (map, path) = map_path_from::<W>(filename)?;
     let mut mover = map.start();
     for path_move in path.path.iter() {
         map.make_move(path_move, &mut mover);
     }
     println!("{mover:?}");
     Ok(mover.password())
+}
+
+pub fn part1(filename: &str) -> anyhow::Result<isize> {
+    find_password::<MapWrapper>(filename)
+}
+
+pub fn part2(filename: &str) -> anyhow::Result<isize> {
+    find_password::<CubeWrapper>(filename)
 }
 
 pub fn map_path_from<W: PositionWarper>(filename: &str) -> anyhow::Result<(Map<W>, Path)> {
@@ -39,9 +48,27 @@ pub fn map_path_from<W: PositionWarper>(filename: &str) -> anyhow::Result<(Map<W
 
 pub trait PositionWarper {
     fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self;
+    fn row2cols(&self) -> &Vec<RangeInclusive<isize>>;
+    fn col2rows(&self) -> &Vec<RangeInclusive<isize>>;
     fn update(&self, mover: PathPosition) -> Pt;
-    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result; 
-    fn starting_column(&self) -> isize;
+
+    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (row, col_range) in self.row2cols().iter().enumerate() {
+            for _ in 0..*col_range.start() {
+                write!(f, " ")?;
+            }
+            for col in col_range.clone() {
+                let p = Pt::new([col, row as isize]);
+                write!(f, "{}", map.get(&p).unwrap())?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+
+    fn starting_column(&self) -> isize {
+        *self.row2cols()[0].start()
+    }
 }
 
 pub struct MapWrapper {
@@ -65,22 +92,37 @@ impl PositionWarper for MapWrapper {
         })
     }
 
-    fn display_helper(&self, map: &BTreeMap<Pt,MapCell>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (row, col_range) in self.row2cols.iter().enumerate() {
-            for _ in 0..*col_range.start() {
-                write!(f, " ")?;
-            }
-            for col in col_range.clone() {
-                let p = Pt::new([col, row as isize]);
-                write!(f, "{}", map.get(&p).unwrap())?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
+    fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
+        &self.row2cols
     }
 
-    fn starting_column(&self) -> isize {
-        *self.row2cols[0].start()
+    fn col2rows(&self) -> &Vec<RangeInclusive<isize>> {
+        &self.col2rows
+    }
+}
+
+pub struct CubeWrapper {
+    row2cols: Vec<RangeInclusive<isize>>,
+    col2rows: Vec<RangeInclusive<isize>>,
+}
+
+impl PositionWarper for CubeWrapper {
+    fn new(map: &BTreeMap<Pt,MapCell>, num_rows: isize, num_cols: isize) -> Self {
+        let row2cols = extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
+        let col2rows = extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
+        Self {row2cols, col2rows}
+    }
+
+    fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
+        &self.row2cols
+    }
+
+    fn col2rows(&self) -> &Vec<RangeInclusive<isize>> {
+        &self.col2rows
+    }
+
+    fn update(&self, mover: PathPosition) -> Pt {
+        todo!()
     }
 }
 
