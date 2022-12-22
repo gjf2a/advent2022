@@ -10,8 +10,13 @@ fn main() -> anyhow::Result<()> {
         let (map, path) = map_path_from(filename)?;
         println!("{map}");
         println!("{path}");
+
         Ok(())
     })
+}
+
+pub fn part1(map: &Map, path: &Path) -> isize {
+    0
 }
 
 pub fn map_path_from(filename: &str) -> anyhow::Result<(Map, Path)> {
@@ -160,4 +165,28 @@ impl Display for PathMove {
 pub struct PathPosition {
     position: Pt,
     orientation: ManhattanDir,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::map_path_from;
+
+    #[test]
+    fn test_parse() {
+        let (map, path) = map_path_from("ex/day22.txt").unwrap();
+        assert_eq!(format!("{path}"), "10R5L5R10L4R5L5");
+        assert_eq!(format!("{map}"), "        ...#
+        .#..
+        #...
+        ....
+...#.......#
+........#...
+..#....#....
+..........#.
+        ...#....
+        .....#..
+        .#......
+        ......#.
+");
+    }
 }
