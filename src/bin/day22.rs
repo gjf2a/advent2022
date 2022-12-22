@@ -70,7 +70,6 @@ impl Map {
     }
 
     pub fn make_move(&self, path_move: &PathMove, mover: &mut PathPosition) {
-        println!("at {}", mover.position);
         match path_move {
             PathMove::Left => {
                 mover.orientation = mover.orientation.counterclockwise();
@@ -94,13 +93,16 @@ impl Map {
                             ManhattanDir::S => [mover.position[0], *self.col2rows[mover.position[0] as usize].start()],
                             ManhattanDir::W => [*self.row2cols[mover.position[1] as usize].end(), mover.position[1]],
                         };
-                        mover.position = Pt::new(updated);
+                        let next = Pt::new(updated);
+                        let cell = self.map.get(&next).unwrap();
+                        if *cell == MapCell::Space {
+                            mover.position = next;
+                        }
                     }
                     countdown -= 1;
                 }
             }
         }
-        println!("{} mover: {:?}", path_move, *mover);
     }
 }
 
@@ -210,6 +212,12 @@ pub struct PathPosition {
     orientation: ManhattanDir,
 }
 
+impl Display for PathPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} {}", self.orientation, self.position)
+    }
+}
+
 impl PathPosition {
     pub fn password(&self) -> isize {
         let facing = match self.orientation {
@@ -218,7 +226,7 @@ impl PathPosition {
             ManhattanDir::S => 1,
             ManhattanDir::W => 2,
         };
-        1000 * self.position[1] + 4 * self.position[0] + facing
+        1000 * (1 + self.position[1]) + 4 * (1 + self.position[0]) + facing
     }
 }
 
