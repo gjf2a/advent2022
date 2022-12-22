@@ -66,10 +66,11 @@ impl Map {
     }
 
     pub fn start(&self) -> PathPosition {
-        PathPosition { position: Pt::new([0, *self.row2cols[0].start()]), orientation: ManhattanDir::E }
+        PathPosition { position: Pt::new([*self.row2cols[0].start(), 0]), orientation: ManhattanDir::E }
     }
 
     pub fn make_move(&self, path_move: &PathMove, mover: &mut PathPosition) {
+        println!("at {}", mover.position);
         match path_move {
             PathMove::Left => {
                 mover.orientation = mover.orientation.counterclockwise();
@@ -99,6 +100,7 @@ impl Map {
                 }
             }
         }
+        println!("{} mover: {:?}", path_move, *mover);
     }
 }
 
