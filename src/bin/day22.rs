@@ -8,15 +8,18 @@ type Pt = Point<isize,2>;
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         let (map, path) = map_path_from(filename)?;
-        println!("{map}");
-        println!("{path}");
-
+        println!("Part 1: {}", part1(&map, &path));
         Ok(())
     })
 }
 
 pub fn part1(map: &Map, path: &Path) -> isize {
-    0
+    let mut mover = map.start();
+    for path_move in path.path.iter() {
+        map.make_move(path_move, &mut mover);
+    }
+    println!("{mover:?}");
+    mover.password()
 }
 
 pub fn map_path_from(filename: &str) -> anyhow::Result<(Map, Path)> {
@@ -60,6 +63,42 @@ impl Map {
         let row2cols = extract_ranges_from(&map, lines.len() as isize, longest_line_len as isize, 0, |outer, inner| [inner, outer]);
         let col2rows = extract_ranges_from(&map, longest_line_len as isize, lines.len() as isize, 1, |outer, inner| [outer, inner]);
         Ok(Map {map, row2cols, col2rows})
+    }
+
+    pub fn start(&self) -> PathPosition {
+        PathPosition { position: Pt::new([0, *self.row2cols[0].start()]), orientation: ManhattanDir::E }
+    }
+
+    pub fn make_move(&self, path_move: &PathMove, mover: &mut PathPosition) {
+        match path_move {
+            PathMove::Left => {
+                mover.orientation = mover.orientation.counterclockwise();
+            }
+            PathMove::Right => {
+                mover.orientation = mover.orientation.clockwise();
+            }
+            PathMove::Forward(distance) => {
+                let mut countdown = *distance;
+                while countdown > 0 {
+                    let mut next = *mover;
+                    next.position.manhattan_move(mover.orientation);
+                    if let Some(cell) = self.map.get(&next.position) {
+                        if *cell == MapCell::Space {
+                            *mover = next;
+                        }
+                    } else {
+                        let updated = match mover.orientation {
+                            ManhattanDir::N => [mover.position[0], *self.col2rows[mover.position[0] as usize].end()],
+                            ManhattanDir::E => [*self.row2cols[mover.position[1] as usize].start(), mover.position[1]],
+                            ManhattanDir::S => [mover.position[0], *self.col2rows[mover.position[0] as usize].start()],
+                            ManhattanDir::W => [*self.row2cols[mover.position[1] as usize].end(), mover.position[1]],
+                        };
+                        mover.position = Pt::new(updated);
+                    }
+                    countdown -= 1;
+                }
+            }
+        }
     }
 }
 
@@ -137,6 +176,7 @@ impl Display for Path {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PathMove {
     Forward(isize), Left, Right
 }
@@ -162,9 +202,22 @@ impl Display for PathMove {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PathPosition {
     position: Pt,
     orientation: ManhattanDir,
+}
+
+impl PathPosition {
+    pub fn password(&self) -> isize {
+        let facing = match self.orientation {
+            ManhattanDir::N => 3,
+            ManhattanDir::E => 0,
+            ManhattanDir::S => 1,
+            ManhattanDir::W => 2,
+        };
+        1000 * self.position[1] + 4 * self.position[0] + facing
+    }
 }
 
 #[cfg(test)]
