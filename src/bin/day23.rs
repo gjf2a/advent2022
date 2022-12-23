@@ -1,6 +1,9 @@
-use std::{collections::{BTreeSet, BTreeMap}, fmt::Display};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Display,
+};
 
-use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point, Dir};
+use advent_code_lib::{all_lines, simpler_main, Dir, ManhattanDir, Point};
 use bare_metal_modulo::{MNum, ModNumC};
 use enum_iterator::all;
 
@@ -40,7 +43,6 @@ fn part2(filename: &str) -> anyhow::Result<usize> {
         if prev == elves.elves {
             return Ok(rounds);
         }
-        println!("{rounds}");
     }
 }
 
@@ -82,8 +84,11 @@ impl CellularElves {
     pub fn round(&mut self) {
         let starting_elves = self.elves.len();
         let proposals = self.proposed_moves();
-        let moves = proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0]));
-        for (end, start) in proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0])) {
+        for (end, start) in proposals
+            .iter()
+            .filter(|(_, ps)| ps.len() == 1)
+            .map(|(end, start)| (*end, start[0]))
+        {
             self.elves.remove(&start);
             self.elves.insert(end);
         }
@@ -91,13 +96,17 @@ impl CellularElves {
         self.dir_start += 1;
     }
 
-    pub fn proposed_moves(&self) -> BTreeMap<Elf,Vec<Elf>> {
+    pub fn proposed_moves(&self) -> BTreeMap<Elf, Vec<Elf>> {
         let mut end2starts = BTreeMap::new();
         for elf in self.elves.iter() {
             if let Some(proposal) = self.proposed_move(*elf) {
                 match end2starts.get_mut(&proposal) {
-                    None => {end2starts.insert(proposal, vec![*elf]);},
-                    Some(v) => {v.push(*elf);},
+                    None => {
+                        end2starts.insert(proposal, vec![*elf]);
+                    }
+                    Some(v) => {
+                        v.push(*elf);
+                    }
                 }
             }
         }
@@ -108,12 +117,17 @@ impl CellularElves {
         if all::<Dir>().all(|n| !self.elves.contains(&elf.dir_moved(n))) {
             None
         } else {
-            self.dir_start.iter().find_map(|i| self.proposal_for(elf, ORDERING[i.a()]))
+            self.dir_start
+                .iter()
+                .find_map(|i| self.proposal_for(elf, ORDERING[i.a()]))
         }
     }
 
     fn proposal_for(&self, elf: Elf, dir: ManhattanDir) -> Option<Elf> {
-        if dir_check(dir).iter().all(|check| !self.elves.contains(&elf.dir_moved(*check))) {
+        if dir_check(dir)
+            .iter()
+            .all(|check| !self.elves.contains(&elf.dir_moved(*check)))
+        {
             Some(elf.manhattan_moved(dir))
         } else {
             None
