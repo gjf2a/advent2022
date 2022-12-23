@@ -8,7 +8,6 @@ use std::{
 
 use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point};
 use anyhow::bail;
-use bare_metal_modulo::{ModNum, MNum};
 use enum_iterator::all;
 
 type Pt = Point<isize, 2>;
@@ -144,9 +143,8 @@ impl PositionWarper for CubeWrapper {
         let mut cube = cube_from(&row2cols, num_rows, num_cols);
         assert_eq!(cube.len(), NUM_CUBE_FACES);
         resolve_easy_neighbors(&mut cube);
-        print_cube(&cube);
-        resolve_remaining_neighbors(&mut cube);
-        println!("after resolving remaining...");
+        resolve_cube(&mut cube);
+        println!("resolved...");
         print_cube(&cube);
         Self { row2cols, col2rows, cube }
     }
@@ -185,6 +183,32 @@ fn cube_from(row2cols: &Vec<RangeInclusive<isize>>, num_rows: isize, num_cols: i
     cube
 }
 
+fn resolve_cube(cube: &mut Vec<CubeFace>) {
+    for _ in 0..10 {
+    //while !cube.iter().any(|face| face.has_all_neighbors()) {
+        for face in 0..cube.len() {
+            for dir in all::<ManhattanDir>() {
+                if let Some(n1) = cube[face][dir] {
+                    if let Some(n2) = cube[face][dir.clockwise()] {
+                        let back = cube[n2].dir_to(face).unwrap().clockwise();
+                        if cube[n1][dir.clockwise()].is_none() && cube[n2][back].is_none() {
+                            cube[n1][dir.clockwise()] = Some(n2);
+                            cube[n2][back] = Some(n1);
+                        }
+                    } 
+                    if let Some(n2) = cube[face][dir.counterclockwise()] {
+                        let back = cube[n2].dir_to(face).unwrap().counterclockwise();
+                        if cube[n1][dir.counterclockwise()].is_none() && cube[n2][back].is_none() {
+                            cube[n1][dir.counterclockwise()] = Some(n2);
+                            cube[n2][back] = Some(n1);
+                        }
+                    }
+                } 
+            }
+        }
+    }
+}
+
 fn resolve_easy_neighbors(cube: &mut Vec<CubeFace>) {
     for i in 0..cube.len() {
         for j in i + 1..cube.len() {
@@ -193,50 +217,6 @@ fn resolve_easy_neighbors(cube: &mut Vec<CubeFace>) {
                 cube[j][dir.inverse()] = Some(i);
             }
         }
-    }
-}
-
-fn resolve_remaining_neighbors(cube: &mut Vec<CubeFace>) {
-    println!("starting...");
-    let mut i = ModNum::new(0, cube.len());
-    let mut loops = 0;
-    while !cube.iter().all(|face| face.has_all_neighbors()) {
-        let candidates = cube[i.a()].unmatched_neighbors().collect::<Vec<_>>();
-        print!("Face {}; candidates: {:?} ", i.a() + 1, candidates);
-        for unmatched in candidates {
-            print!("unmatched: {unmatched:?} ");
-            let helper = unmatched.counterclockwise();
-            print!("go {helper:?} ");
-            if let Some(face) = cube[i.a()][helper] {
-                print!("to {} ", face + 1);
-                let dir2neighbor = unmatched;
-                print!("then {dir2neighbor:?} ");
-                if let Some(neighbor) = cube[face][dir2neighbor] {
-                    print!(" to {} ", neighbor + 1);
-                    //let dir_back = dir2neighbor.clockwise();
-                    let dir_back = cube[neighbor].dir_to(face).unwrap().counterclockwise();
-                    print!("and {dir_back:?} ");
-                    if cube[neighbor][dir_back].is_none() {
-                        print!(" to start!");
-                        cube[neighbor][dir_back] = Some(i.a());
-                        cube[i.a()][unmatched] = Some(neighbor);
-                    }
-                }
-            }
-        }
-        println!();
-        loops += 1;
-        println!("After loop {loops}; face {}", i.a() + 1);
-        print_cube(&cube);
-        i += 1;
-        if loops > 24 {panic!("Too many loops!")}
-    }
-}
-
-fn orthogonal_dirs(dir: ManhattanDir) -> [ManhattanDir; 2] {
-    match dir {
-        ManhattanDir::N | ManhattanDir::S => [ManhattanDir::E, ManhattanDir::W],
-        _ => [ManhattanDir::N, ManhattanDir::S]
     }
 }
 
@@ -273,6 +253,10 @@ impl CubeFace {
 
     pub fn has_all_neighbors(&self) -> bool {
         self.neighbors.iter().all(|n| n.is_some())
+    }
+
+    pub fn matched_neighbors(&self) -> impl Iterator<Item=ManhattanDir> + '_ {
+        all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_some())
     }
 
     pub fn unmatched_neighbors(&self) -> impl Iterator<Item=ManhattanDir> + '_ {
