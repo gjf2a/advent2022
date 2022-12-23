@@ -1,6 +1,6 @@
-use std::{collections::BTreeSet, fmt::Display};
+use std::{collections::{BTreeSet, BTreeMap}, fmt::Display};
 
-use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point};
+use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point, Dir};
 use bare_metal_modulo::{MNum, ModNumC};
 
 type Elf = Point<isize, 2>;
@@ -24,6 +24,9 @@ fn main() -> anyhow::Result<()> {
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let mut elves = CellularElves::from_file(filename)?;
     println!("{elves}");
+    for _ in 0..10 {
+        elves.round();
+    }
     Ok(elves.empty_space())
 }
 
@@ -61,11 +64,56 @@ impl CellularElves {
         result
     }
 
+    pub fn round(&mut self) {
+        let proposals = self.proposed_moves();
+        for (end, start) in proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0])) {
+            self.elves.remove(&start);
+            self.elves.insert(end);
+        }
+        self.dir_start += 1;
+    }
+
+    pub fn proposed_moves(&self) -> BTreeMap<Elf,Vec<Elf>> {
+        let mut end2starts = BTreeMap::new();
+        for elf in self.elves.iter() {
+            if !end2starts.contains_key(elf) {
+                end2starts.insert(*elf, vec![]);
+            }
+            if let Some(proposal) = self.proposed_move(*elf) {
+                end2starts.get_mut(&elf).unwrap().push(proposal);
+            }
+        }
+        end2starts
+    }
+
+    fn proposed_move(&self, elf: Elf) -> Option<Elf> {
+        self.dir_start.iter().find_map(|i| self.proposal_for(elf, ORDERING[i.a()]))
+    }
+
+    fn proposal_for(&self, elf: Elf, dir: ManhattanDir) -> Option<Elf> {
+        for check in dir_check(dir) {
+            let option = elf.dir_moved(check);
+            if !self.elves.contains(&option) {
+                return Some(elf.manhattan_moved(dir));
+            }
+        }
+        None
+    }
+
     pub fn empty_space(&self) -> usize {
         self.min_elf_rectangle_pts()
             .iter()
             .filter(|(col, row)| !self.elf(*col, *row))
             .count()
+    }
+}
+
+fn dir_check(dir: ManhattanDir) -> [Dir; 3] {
+    match dir {
+        ManhattanDir::N => [Dir::Ne, Dir::N, Dir::Nw],
+        ManhattanDir::E => [Dir::Ne, Dir::E, Dir::Se],
+        ManhattanDir::S => [Dir::Se, Dir::S, Dir::Sw],
+        ManhattanDir::W => [Dir::Nw, Dir::W, Dir::Sw],
     }
 }
 
