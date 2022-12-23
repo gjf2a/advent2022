@@ -25,10 +25,11 @@ fn main() -> anyhow::Result<()> {
 fn find_password<W: PositionWarper>(filename: &str) -> anyhow::Result<isize> {
     let (map, path) = map_path_from::<W>(filename)?;
     let mut mover = map.start();
+    println!("Starting at: {mover:?}");
     for path_move in path.path.iter() {
         map.make_move(path_move, &mut mover);
     }
-    println!("{mover:?}");
+    println!("Ending at: {mover:?}");
     Ok(mover.password())
 }
 
@@ -146,7 +147,11 @@ impl PositionWarper for CubeWrapper {
         resolve_cube(&mut cube);
         println!("resolved...");
         print_cube(&cube);
-        Self { row2cols, col2rows, cube }
+        Self {
+            row2cols,
+            col2rows,
+            cube,
+        }
     }
 
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
@@ -160,6 +165,7 @@ impl PositionWarper for CubeWrapper {
     fn update(&self, mover: PathPosition) -> Pt {
         let start_face = self.cube_for(mover).unwrap();
         let end_face = &self.cube[start_face[mover.orientation].unwrap()];
+        println!("{} {:?} start_face: {} end_face: {}", mover.position, mover.orientation, self.cube_index_for(mover).unwrap() + 1, start_face[mover.orientation].unwrap() + 1);
         Pt::new(match mover.orientation {
             ManhattanDir::N => [mover.position[0], *end_face.ys.end()],
             ManhattanDir::E => [*end_face.xs.end(), mover.position[1]],
@@ -169,7 +175,11 @@ impl PositionWarper for CubeWrapper {
     }
 }
 
-fn cube_from(row2cols: &Vec<RangeInclusive<isize>>, num_rows: isize, num_cols: isize) -> Vec<CubeFace> {
+fn cube_from(
+    row2cols: &Vec<RangeInclusive<isize>>,
+    num_rows: isize,
+    num_cols: isize,
+) -> Vec<CubeFace> {
     let cube_size = (min(num_rows, num_cols) / 3) as usize;
     let face_offset = cube_size as isize - 1;
     assert_eq!(cube_size as isize * 3, min(num_rows, num_cols));
@@ -177,7 +187,10 @@ fn cube_from(row2cols: &Vec<RangeInclusive<isize>>, num_rows: isize, num_cols: i
     for (row, cols) in row2cols.iter().enumerate().step_by(cube_size) {
         for start in cols.clone().step_by(cube_size) {
             let row = row as isize;
-            cube.push(CubeFace::new(start..=start + face_offset, row..=row + face_offset));
+            cube.push(CubeFace::new(
+                start..=start + face_offset,
+                row..=row + face_offset,
+            ));
         }
     }
     cube
@@ -185,26 +198,29 @@ fn cube_from(row2cols: &Vec<RangeInclusive<isize>>, num_rows: isize, num_cols: i
 
 fn resolve_cube(cube: &mut Vec<CubeFace>) {
     for _ in 0..10 {
-    //while !cube.iter().any(|face| face.has_all_neighbors()) {
         for face in 0..cube.len() {
             for dir in all::<ManhattanDir>() {
                 if let Some(n1) = cube[face][dir] {
-                    if let Some(n2) = cube[face][dir.clockwise()] {
-                        let back = cube[n2].dir_to(face).unwrap().clockwise();
-                        if cube[n1][dir.clockwise()].is_none() && cube[n2][back].is_none() {
-                            cube[n1][dir.clockwise()] = Some(n2);
-                            cube[n2][back] = Some(n1);
-                        }
-                    } 
-                    if let Some(n2) = cube[face][dir.counterclockwise()] {
-                        let back = cube[n2].dir_to(face).unwrap().counterclockwise();
-                        if cube[n1][dir.counterclockwise()].is_none() && cube[n2][back].is_none() {
-                            cube[n1][dir.counterclockwise()] = Some(n2);
-                            cube[n2][back] = Some(n1);
-                        }
-                    }
-                } 
+                    fix_corner(cube, face, dir, n1, |d| d.clockwise());
+                    fix_corner(cube, face, dir, n1, |d| d.counterclockwise());
+                }
             }
+        }
+    }
+}
+
+fn fix_corner<D: Fn(ManhattanDir) -> ManhattanDir>(
+    cube: &mut Vec<CubeFace>,
+    face: usize,
+    dir: ManhattanDir,
+    n1: usize,
+    next_dir: D,
+) {
+    if let Some(n2) = cube[face][next_dir(dir)] {
+        let back = next_dir(cube[n2].dir_to(face).unwrap());
+        if cube[n1][next_dir(dir)].is_none() && cube[n2][back].is_none() {
+            cube[n1][next_dir(dir)] = Some(n2);
+            cube[n2][back] = Some(n1);
         }
     }
 }
@@ -225,6 +241,15 @@ impl CubeWrapper {
         for face in self.cube.iter() {
             if face.contains(mover.position) {
                 return Some(face);
+            }
+        }
+        None
+    }
+
+    fn cube_index_for(&self, mover: PathPosition) -> Option<usize> {
+        for (i, face) in self.cube.iter().enumerate() {
+            if face.contains(mover.position) {
+                return Some(i);
             }
         }
         None
@@ -255,11 +280,11 @@ impl CubeFace {
         self.neighbors.iter().all(|n| n.is_some())
     }
 
-    pub fn matched_neighbors(&self) -> impl Iterator<Item=ManhattanDir> + '_ {
+    pub fn matched_neighbors(&self) -> impl Iterator<Item = ManhattanDir> + '_ {
         all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_some())
     }
 
-    pub fn unmatched_neighbors(&self) -> impl Iterator<Item=ManhattanDir> + '_ {
+    pub fn unmatched_neighbors(&self) -> impl Iterator<Item = ManhattanDir> + '_ {
         all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_none())
     }
 
@@ -274,7 +299,7 @@ impl CubeFace {
                 ManhattanDir::E => Pt::new([*self.xs.end() + 1, *self.ys.start()]),
                 ManhattanDir::S => Pt::new([*self.xs.start(), *self.ys.end() + 1]),
                 ManhattanDir::W => Pt::new([*self.xs.start() + 1, *self.ys.start()]),
-            }; 
+            };
             if other.contains(test_point) {
                 return Some(dir);
             }
@@ -365,6 +390,7 @@ impl<W: PositionWarper> Map<W> {
                 while countdown > 0 {
                     let mut next = *mover;
                     next.position.manhattan_move(mover.orientation);
+                    println!("next: {next:?}");
                     if let Some(cell) = self.map.get(&next.position) {
                         if *cell == MapCell::Space {
                             *mover = next;
