@@ -165,7 +165,13 @@ impl PositionWarper for CubeWrapper {
     fn update(&self, mover: PathPosition) -> Pt {
         let start_face = self.cube_for(mover).unwrap();
         let end_face = &self.cube[start_face[mover.orientation].unwrap()];
-        println!("{} {:?} start_face: {} end_face: {}", mover.position, mover.orientation, self.cube_index_for(mover).unwrap() + 1, start_face[mover.orientation].unwrap() + 1);
+        println!(
+            "{} {:?} start_face: {} end_face: {}",
+            mover.position,
+            mover.orientation,
+            self.cube_index_for(mover).unwrap() + 1,
+            start_face[mover.orientation].unwrap() + 1
+        );
         Pt::new(match mover.orientation {
             ManhattanDir::N => [mover.position[0], *end_face.ys.end()],
             ManhattanDir::E => [*end_face.xs.end(), mover.position[1]],
