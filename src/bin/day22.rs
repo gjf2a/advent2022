@@ -144,14 +144,10 @@ impl PositionWarper for CubeWrapper {
         let mut cube = cube_from(&row2cols, num_rows, num_cols);
         assert_eq!(cube.len(), NUM_CUBE_FACES);
         resolve_easy_neighbors(&mut cube);
-        for (i, face) in cube.iter().enumerate() {
-            println!("Face {i}: {face}");
-        }
+        print_cube(&cube);
         resolve_remaining_neighbors(&mut cube);
         println!("after resolving remaining...");
-        for (i, face) in cube.iter().enumerate() {
-            println!("Face {i}: {face}");
-        }
+        print_cube(&cube);
         Self { row2cols, col2rows, cube }
     }
 
@@ -201,21 +197,29 @@ fn resolve_easy_neighbors(cube: &mut Vec<CubeFace>) {
 }
 
 fn resolve_remaining_neighbors(cube: &mut Vec<CubeFace>) {
+    println!("starting...");
     let mut i = ModNum::new(0, cube.len());
+    let mut loops = 0;
     while !cube.iter().all(|face| face.has_all_neighbors()) {
         let candidates = cube[i.a()].unmatched_neighbors().collect::<Vec<_>>();
         for unmatched in candidates {
             for helper in orthogonal_dirs(unmatched) {
                 if let Some(face) = cube[i.a()][helper] {
                     if let Some(neighbor) = cube[face][unmatched] {
-                        cube[i.a()][unmatched] = Some(neighbor);
-                        cube[neighbor][helper] = Some(i.a());
-                        break;
+                        if cube[neighbor][helper.inverse()].is_none() {
+                            cube[i.a()][unmatched] = Some(neighbor);
+                            cube[neighbor][helper.inverse()] = Some(i.a());
+                            break;
+                        }
                     }
                 }
             }
         }
+        loops += 1;
+        println!("After loop {loops}; face {}", i.a() + 1);
+        print_cube(&cube);
         i += 1;
+        if loops > 12 {panic!("Too many loops!")}
     }
 }
 
@@ -300,10 +304,16 @@ impl Display for CubeFace {
         write!(f, "xs: {:?} ys: {:?}", self.xs, self.ys)?;
         for dir in all::<ManhattanDir>() {
             if let Some(n) = self[dir] {
-                write!(f, " {:?}:{}", dir, n)?;
+                write!(f, " {:?}:{}", dir, n + 1)?;
             }
         }
         Ok(())
+    }
+}
+
+fn print_cube(cube: &Vec<CubeFace>) {
+    for i in 0..cube.len() {
+        println!("Face {}: {}", i + 1, cube[i]);
     }
 }
 
