@@ -60,7 +60,7 @@ pub trait PositionWarper {
     fn new(map: &BTreeMap<Pt, MapCell>, num_rows: isize, num_cols: isize) -> Self;
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>>;
     fn col2rows(&self) -> &Vec<RangeInclusive<isize>>;
-    fn update(&self, mover: PathPosition) -> Pt;
+    fn update(&self, mover: PathPosition) -> PathPosition;
 
     fn display_helper(
         &self,
@@ -99,8 +99,8 @@ impl PositionWarper for MapWrapper {
         Self { row2cols, col2rows }
     }
 
-    fn update(&self, mover: PathPosition) -> Pt {
-        Pt::new(match mover.orientation {
+    fn update(&self, mover: PathPosition) -> PathPosition {
+        PathPosition { orientation: mover.orientation, position: Pt::new(match mover.orientation {
             ManhattanDir::N => [
                 mover.position[0],
                 *self.col2rows[mover.position[0] as usize].end(),
@@ -117,7 +117,7 @@ impl PositionWarper for MapWrapper {
                 *self.row2cols[mover.position[1] as usize].end(),
                 mover.position[1],
             ],
-        })
+        })}
     }
 
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
@@ -133,6 +133,17 @@ pub struct CubeWrapper {
     row2cols: Vec<RangeInclusive<isize>>,
     col2rows: Vec<RangeInclusive<isize>>,
     cube: Vec<CubeFace>,
+}
+
+impl CubeWrapper {
+    fn cube_index_for(&self, mover: PathPosition) -> Option<usize> {
+        for (i, face) in self.cube.iter().enumerate() {
+            if face.contains(mover.position) {
+                return Some(i);
+            }
+        }
+        None
+    }
 }
 
 impl PositionWarper for CubeWrapper {
@@ -162,22 +173,40 @@ impl PositionWarper for CubeWrapper {
         &self.col2rows
     }
 
-    fn update(&self, mover: PathPosition) -> Pt {
-        let start_face = self.cube_for(mover).unwrap();
-        let end_face = &self.cube[start_face[mover.orientation].unwrap()];
-        println!(
-            "{} {:?} start_face: {} end_face: {}",
-            mover.position,
-            mover.orientation,
-            self.cube_index_for(mover).unwrap() + 1,
-            start_face[mover.orientation].unwrap() + 1
-        );
-        Pt::new(match mover.orientation {
-            ManhattanDir::N => [mover.position[0], *end_face.ys.end()],
-            ManhattanDir::E => [*end_face.xs.end(), mover.position[1]],
-            ManhattanDir::S => [mover.position[0], *end_face.ys.start()],
-            ManhattanDir::W => [*end_face.xs.start(), mover.position[1]],
-        })
+    fn update(&self, mover: PathPosition) -> PathPosition {
+        let i_start_face = self.cube_index_for(mover).unwrap();
+        let start_face = self.cube[i_start_face].clone();
+        let i_end_face = start_face[mover.orientation].unwrap();
+        let end_face = self.cube[i_end_face].clone();
+        let start2end = start_face.dir_to(i_end_face).unwrap();
+        assert_eq!(start2end, mover.orientation);
+        let end2start = end_face.dir_to(i_start_face).unwrap();
+        match start2end {
+            ManhattanDir::N => match end2start {
+                ManhattanDir::N => todo!(),
+                ManhattanDir::E => todo!(),
+                ManhattanDir::S => PathPosition { position: Pt::new([mover.position[0], *end_face.ys.end()]), orientation: mover.orientation },
+                ManhattanDir::W => todo!(),
+            },
+            ManhattanDir::E => match end2start {
+                ManhattanDir::N => todo!(),
+                ManhattanDir::E => todo!(),
+                ManhattanDir::S => todo!(),
+                ManhattanDir::W => PathPosition { position: Pt::new([*end_face.xs.end(), mover.position[1]]), orientation: mover.orientation },
+            },
+            ManhattanDir::S => match end2start {
+                ManhattanDir::N => PathPosition { position: Pt::new([mover.position[0], *end_face.ys.start()]), orientation: mover.orientation },
+                ManhattanDir::E => todo!(),
+                ManhattanDir::S => todo!(),
+                ManhattanDir::W => todo!(),
+            },
+            ManhattanDir::W => match end2start {
+                ManhattanDir::N => todo!(),
+                ManhattanDir::E => PathPosition { position: Pt::new([*end_face.xs.start(), mover.position[1]]), orientation: mover.orientation },
+                ManhattanDir::S => todo!(),
+                ManhattanDir::W => todo!(),
+            },
+        }
     }
 }
 
@@ -239,26 +268,6 @@ fn resolve_easy_neighbors(cube: &mut Vec<CubeFace>) {
                 cube[j][dir.inverse()] = Some(i);
             }
         }
-    }
-}
-
-impl CubeWrapper {
-    fn cube_for(&self, mover: PathPosition) -> Option<&CubeFace> {
-        for face in self.cube.iter() {
-            if face.contains(mover.position) {
-                return Some(face);
-            }
-        }
-        None
-    }
-
-    fn cube_index_for(&self, mover: PathPosition) -> Option<usize> {
-        for (i, face) in self.cube.iter().enumerate() {
-            if face.contains(mover.position) {
-                return Some(i);
-            }
-        }
-        None
     }
 }
 
@@ -396,16 +405,15 @@ impl<W: PositionWarper> Map<W> {
                 while countdown > 0 {
                     let mut next = *mover;
                     next.position.manhattan_move(mover.orientation);
-                    println!("next: {next:?}");
                     if let Some(cell) = self.map.get(&next.position) {
                         if *cell == MapCell::Space {
                             *mover = next;
                         }
                     } else {
                         let next = self.warper.update(*mover);
-                        let cell = self.map.get(&next).unwrap();
+                        let cell = self.map.get(&next.position).unwrap();
                         if *cell == MapCell::Space {
-                            mover.position = next;
+                            *mover = next;
                         }
                     }
                     countdown -= 1;
