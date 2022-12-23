@@ -24,12 +24,8 @@ fn main() -> anyhow::Result<()> {
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let mut elves = CellularElves::from_file(filename)?;
-    println!("{elves:?}");
-    println!("{elves}");
     for r in 0..10 {
         elves.round();
-        println!("After round {}:", r + 1);
-        println!("{elves}");
     }
     Ok(elves.empty_space())
 }
@@ -72,9 +68,7 @@ impl CellularElves {
     pub fn round(&mut self) {
         let starting_elves = self.elves.len();
         let proposals = self.proposed_moves();
-        println!("proposals: {proposals:?}");
         let moves = proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0]));
-        println!("movables:  {:?}", moves.clone().collect::<Vec<_>>());
         for (end, start) in proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0])) {
             self.elves.remove(&start);
             self.elves.insert(end);
