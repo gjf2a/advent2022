@@ -17,17 +17,31 @@ const ORDERING_LEN: usize = ORDERING.len();
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
-        //println!("Part 2: {}", part2(filename)?);
+        println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let mut elves = CellularElves::from_file(filename)?;
-    for r in 0..10 {
+    for _ in 0..10 {
         elves.round();
     }
     Ok(elves.empty_space())
+}
+
+fn part2(filename: &str) -> anyhow::Result<usize> {
+    let mut elves = CellularElves::from_file(filename)?;
+    let mut rounds = 0;
+    loop {
+        let prev = elves.elves.clone();
+        elves.round();
+        rounds += 1;
+        if prev == elves.elves {
+            return Ok(rounds);
+        }
+        println!("{rounds}");
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
