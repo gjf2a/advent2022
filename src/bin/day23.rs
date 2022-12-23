@@ -23,13 +23,17 @@ fn main() -> anyhow::Result<()> {
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let mut elves = CellularElves::from_file(filename)?;
+    println!("{elves:?}");
     println!("{elves}");
-    for _ in 0..10 {
+    for r in 0..10 {
         elves.round();
+        println!("After round {}:", r + 1);
+        println!("{elves}");
     }
     Ok(elves.empty_space())
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CellularElves {
     elves: BTreeSet<Elf>,
     dir_start: ModNumC<usize, ORDERING_LEN>,
@@ -65,22 +69,27 @@ impl CellularElves {
     }
 
     pub fn round(&mut self) {
+        let starting_elves = self.elves.len();
         let proposals = self.proposed_moves();
+        println!("proposals: {proposals:?}");
+        let moves = proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0]));
+        println!("movables:  {:?}", moves.clone().collect::<Vec<_>>());
         for (end, start) in proposals.iter().filter(|(_,ps)| ps.len() == 1).map(|(end, start)| (*end, start[0])) {
             self.elves.remove(&start);
             self.elves.insert(end);
         }
+        assert_eq!(starting_elves, self.elves.len());
         self.dir_start += 1;
     }
 
     pub fn proposed_moves(&self) -> BTreeMap<Elf,Vec<Elf>> {
         let mut end2starts = BTreeMap::new();
         for elf in self.elves.iter() {
-            if !end2starts.contains_key(elf) {
-                end2starts.insert(*elf, vec![]);
-            }
             if let Some(proposal) = self.proposed_move(*elf) {
-                end2starts.get_mut(&elf).unwrap().push(proposal);
+                match end2starts.get_mut(&proposal) {
+                    None => {end2starts.insert(proposal, vec![*elf]);},
+                    Some(v) => {v.push(*elf);},
+                }
             }
         }
         end2starts
@@ -94,7 +103,7 @@ impl CellularElves {
         for check in dir_check(dir) {
             let option = elf.dir_moved(check);
             if !self.elves.contains(&option) {
-                return Some(elf.manhattan_moved(dir));
+                return Some(option);
             }
         }
         None
@@ -119,12 +128,13 @@ fn dir_check(dir: ManhattanDir) -> [Dir; 3] {
 
 impl Display for CellularElves {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (col, row) in self.min_elf_rectangle_pts() {
-            if row > 0 && col == 0 {
-                writeln!(f)?;
+        let (min_elf, max_elf) = Elf::min_max_points(self.elves.iter().copied()).unwrap();
+        for row in min_elf[1]..=max_elf[1] {
+            for col in min_elf[0]..=max_elf[0] {
+                let c = if self.elf(col, row) { '#' } else { '.' };
+                write!(f, "{c}")?;
             }
-            let c = if self.elf(col, row) { '#' } else { '.' };
-            write!(f, "{c}")?;
+            writeln!(f)?;
         }
         Ok(())
     }
