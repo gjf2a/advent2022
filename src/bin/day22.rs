@@ -8,6 +8,8 @@ use std::{
 
 use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point};
 use anyhow::bail;
+use bare_metal_modulo::{ModNum, MNum};
+use enum_iterator::all;
 
 type Pt = Point<isize, 2>;
 const CUBE_FACE_NEIGHBORS: usize = 4;
@@ -130,7 +132,7 @@ impl PositionWarper for MapWrapper {
 pub struct CubeWrapper {
     row2cols: Vec<RangeInclusive<isize>>,
     col2rows: Vec<RangeInclusive<isize>>,
-    cube: [CubeFace; NUM_CUBE_FACES],
+    cube: Vec<CubeFace>,
 }
 
 impl PositionWarper for CubeWrapper {
@@ -139,19 +141,18 @@ impl PositionWarper for CubeWrapper {
             extract_ranges_from(&map, num_rows, num_cols, 0, |outer, inner| [inner, outer]);
         let col2rows =
             extract_ranges_from(&map, num_cols, num_rows, 1, |outer, inner| [outer, inner]);
-        let cube_size = (min(num_rows, num_cols) / 3) as usize;
-        let face_offset = cube_size as isize - 1;
-        assert_eq!(cube_size as isize * 3, min(num_rows, num_cols));
-        let mut cube = vec![];
-        for (row, cols) in row2cols.iter().enumerate().step_by(cube_size) {
-            for start in cols.clone().step_by(cube_size) {
-                let row = row as isize;
-                cube.push(CubeFace::new(start..=start + face_offset, row..=row + face_offset));
-            }
+        let mut cube = cube_from(&row2cols, num_rows, num_cols);
+        assert_eq!(cube.len(), NUM_CUBE_FACES);
+        resolve_easy_neighbors(&mut cube);
+        for (i, face) in cube.iter().enumerate() {
+            println!("Face {i}: {face}");
         }
-        println!("{cube:?}");
-        todo!("Not done yet")
-        //Self { row2cols, col2rows }
+        resolve_remaining_neighbors(&mut cube);
+        println!("after resolving remaining...");
+        for (i, face) in cube.iter().enumerate() {
+            println!("Face {i}: {face}");
+        }
+        Self { row2cols, col2rows, cube }
     }
 
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
@@ -171,6 +172,57 @@ impl PositionWarper for CubeWrapper {
             ManhattanDir::S => [mover.position[0], *end_face.ys.start()],
             ManhattanDir::W => [*end_face.xs.start(), mover.position[1]],
         })
+    }
+}
+
+fn cube_from(row2cols: &Vec<RangeInclusive<isize>>, num_rows: isize, num_cols: isize) -> Vec<CubeFace> {
+    let cube_size = (min(num_rows, num_cols) / 3) as usize;
+    let face_offset = cube_size as isize - 1;
+    assert_eq!(cube_size as isize * 3, min(num_rows, num_cols));
+    let mut cube = vec![];
+    for (row, cols) in row2cols.iter().enumerate().step_by(cube_size) {
+        for start in cols.clone().step_by(cube_size) {
+            let row = row as isize;
+            cube.push(CubeFace::new(start..=start + face_offset, row..=row + face_offset));
+        }
+    }
+    cube
+}
+
+fn resolve_easy_neighbors(cube: &mut Vec<CubeFace>) {
+    for i in 0..cube.len() {
+        for j in i + 1..cube.len() {
+            if let Some(dir) = cube[i].touches(&cube[j]) {
+                cube[i][dir] = Some(j);
+                cube[j][dir.inverse()] = Some(i);
+            }
+        }
+    }
+}
+
+fn resolve_remaining_neighbors(cube: &mut Vec<CubeFace>) {
+    let mut i = ModNum::new(0, cube.len());
+    while !cube.iter().all(|face| face.has_all_neighbors()) {
+        let candidates = cube[i.a()].unmatched_neighbors().collect::<Vec<_>>();
+        for unmatched in candidates {
+            for helper in orthogonal_dirs(unmatched) {
+                if let Some(face) = cube[i.a()][helper] {
+                    if let Some(neighbor) = cube[face][unmatched] {
+                        cube[i.a()][unmatched] = Some(neighbor);
+                        cube[neighbor][helper] = Some(i.a());
+                        break;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+fn orthogonal_dirs(dir: ManhattanDir) -> [ManhattanDir; 2] {
+    match dir {
+        ManhattanDir::N | ManhattanDir::S => [ManhattanDir::E, ManhattanDir::W],
+        _ => [ManhattanDir::N, ManhattanDir::S]
     }
 }
 
@@ -201,8 +253,31 @@ impl CubeFace {
         }
     }
 
+    pub fn has_all_neighbors(&self) -> bool {
+        self.neighbors.iter().all(|n| n.is_some())
+    }
+
+    pub fn unmatched_neighbors(&self) -> impl Iterator<Item=ManhattanDir> + '_ {
+        all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_none())
+    }
+
     pub fn contains(&self, p: Pt) -> bool {
         self.xs.contains(&p[0]) && self.ys.contains(&p[1])
+    }
+
+    pub fn touches(&self, other: &CubeFace) -> Option<ManhattanDir> {
+        for dir in all::<ManhattanDir>() {
+            let test_point = match dir {
+                ManhattanDir::N => Pt::new([*self.xs.start(), *self.ys.start() - 1]),
+                ManhattanDir::E => Pt::new([*self.xs.end() + 1, *self.ys.start()]),
+                ManhattanDir::S => Pt::new([*self.xs.start(), *self.ys.end() + 1]),
+                ManhattanDir::W => Pt::new([*self.xs.start() + 1, *self.ys.start()]),
+            }; 
+            if other.contains(test_point) {
+                return Some(dir);
+            }
+        }
+        None
     }
 }
 
@@ -217,6 +292,18 @@ impl Index<ManhattanDir> for CubeFace {
 impl IndexMut<ManhattanDir> for CubeFace {
     fn index_mut(&mut self, index: ManhattanDir) -> &mut Self::Output {
         &mut self.neighbors[index as usize]
+    }
+}
+
+impl Display for CubeFace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "xs: {:?} ys: {:?}", self.xs, self.ys)?;
+        for dir in all::<ManhattanDir>() {
+            if let Some(n) = self[dir] {
+                write!(f, " {:?}:{}", dir, n)?;
+            }
+        }
+        Ok(())
     }
 }
 
