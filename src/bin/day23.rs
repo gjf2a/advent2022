@@ -100,13 +100,11 @@ impl CellularElves {
     }
 
     fn proposal_for(&self, elf: Elf, dir: ManhattanDir) -> Option<Elf> {
-        for check in dir_check(dir) {
-            let option = elf.dir_moved(check);
-            if !self.elves.contains(&option) {
-                return Some(option);
-            }
+        if dir_check(dir).iter().all(|check| !self.elves.contains(&elf.dir_moved(*check))) {
+            Some(elf.manhattan_moved(dir))
+        } else {
+            None
         }
-        None
     }
 
     pub fn empty_space(&self) -> usize {
