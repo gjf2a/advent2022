@@ -2,6 +2,7 @@ use std::{collections::{BTreeSet, BTreeMap}, fmt::Display};
 
 use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point, Dir};
 use bare_metal_modulo::{MNum, ModNumC};
+use enum_iterator::all;
 
 type Elf = Point<isize, 2>;
 
@@ -96,7 +97,11 @@ impl CellularElves {
     }
 
     fn proposed_move(&self, elf: Elf) -> Option<Elf> {
-        self.dir_start.iter().find_map(|i| self.proposal_for(elf, ORDERING[i.a()]))
+        if all::<Dir>().all(|n| !self.elves.contains(&elf.dir_moved(n))) {
+            None
+        } else {
+            self.dir_start.iter().find_map(|i| self.proposal_for(elf, ORDERING[i.a()]))
+        }
     }
 
     fn proposal_for(&self, elf: Elf, dir: ManhattanDir) -> Option<Elf> {
