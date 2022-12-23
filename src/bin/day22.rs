@@ -281,10 +281,6 @@ impl CubeFace {
         all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_some())
     }
 
-    pub fn unmatched_neighbors(&self) -> impl Iterator<Item = ManhattanDir> + '_ {
-        all::<ManhattanDir>().filter(|d| self.neighbors[*d as usize].is_none())
-    }
-
     pub fn contains(&self, p: Pt) -> bool {
         self.xs.contains(&p[0]) && self.ys.contains(&p[1])
     }
@@ -409,16 +405,12 @@ impl<W: PositionWarper> Map<W> {
                 while countdown > 0 {
                     let mut next = *mover;
                     next.position.manhattan_move(mover.orientation);
-                    if let Some(cell) = self.map.get(&next.position) {
-                        if *cell == MapCell::Space {
-                            *mover = next;
-                        }
-                    } else {
-                        let next = self.warper.update(*mover);
-                        let cell = self.map.get(&next.position).unwrap();
-                        if *cell == MapCell::Space {
-                            *mover = next;
-                        }
+                    if !self.map.contains_key(&next.position) {
+                        next = self.warper.update(*mover);
+                    }
+                    let cell = self.map.get(&next.position).unwrap();
+                    if *cell == MapCell::Space {
+                        *mover = next;
                     }
                     countdown -= 1;
                 }
