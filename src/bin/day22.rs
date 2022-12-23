@@ -178,35 +178,10 @@ impl PositionWarper for CubeWrapper {
         let start_face = self.cube[i_start_face].clone();
         let i_end_face = start_face[mover.orientation].unwrap();
         let end_face = self.cube[i_end_face].clone();
-        let start2end = start_face.dir_to(i_end_face).unwrap();
-        assert_eq!(start2end, mover.orientation);
         let end2start = end_face.dir_to(i_start_face).unwrap();
-        match start2end {
-            ManhattanDir::N => match end2start {
-                ManhattanDir::N => todo!(),
-                ManhattanDir::E => todo!(),
-                ManhattanDir::S => PathPosition { position: Pt::new([mover.position[0], *end_face.ys.end()]), orientation: mover.orientation },
-                ManhattanDir::W => todo!(),
-            },
-            ManhattanDir::E => match end2start {
-                ManhattanDir::N => todo!(),
-                ManhattanDir::E => todo!(),
-                ManhattanDir::S => todo!(),
-                ManhattanDir::W => PathPosition { position: Pt::new([*end_face.xs.end(), mover.position[1]]), orientation: mover.orientation },
-            },
-            ManhattanDir::S => match end2start {
-                ManhattanDir::N => PathPosition { position: Pt::new([mover.position[0], *end_face.ys.start()]), orientation: mover.orientation },
-                ManhattanDir::E => todo!(),
-                ManhattanDir::S => todo!(),
-                ManhattanDir::W => todo!(),
-            },
-            ManhattanDir::W => match end2start {
-                ManhattanDir::N => todo!(),
-                ManhattanDir::E => PathPosition { position: Pt::new([*end_face.xs.start(), mover.position[1]]), orientation: mover.orientation },
-                ManhattanDir::S => todo!(),
-                ManhattanDir::W => todo!(),
-            },
-        }
+        let new_orientation = end2start.inverse();
+        let new_pt = end_face.receiving_position(end2start, start_face.left_departure_offset(mover));
+        PathPosition { position: new_pt, orientation: new_orientation }
     }
 }
 
@@ -320,6 +295,24 @@ impl CubeFace {
             }
         }
         None
+    }
+
+    pub fn left_departure_offset(&self, departer: PathPosition) -> isize {
+        match departer.orientation {
+            ManhattanDir::N => departer.position[0] - self.xs.start(),
+            ManhattanDir::E => departer.position[1] - self.ys.start(),
+            ManhattanDir::S => self.xs.end() - departer.position[0],
+            ManhattanDir::W => self.ys.end() - departer.position[1],
+        }
+    }
+
+    pub fn receiving_position(&self, receiving_direction: ManhattanDir, left_departure: isize) -> Pt {
+        Pt::new(match receiving_direction {
+            ManhattanDir::N => [self.xs.end() - left_departure, *self.ys.start()],
+            ManhattanDir::E => [*self.xs.end(), self.ys.end() - left_departure],
+            ManhattanDir::S => [self.xs.end() - left_departure, *self.ys.end()],
+            ManhattanDir::W => [*self.xs.start(), self.ys.end() - left_departure],
+        })
     }
 }
 
