@@ -28,6 +28,7 @@ fn find_password<W: PositionWarper>(filename: &str) -> anyhow::Result<isize> {
     println!("Starting at: {mover:?}");
     for path_move in path.path.iter() {
         map.make_move(path_move, &mut mover);
+        println!("{path_move:?} -> {} ({:?})", mover.position, mover.orientation);
     }
     println!("Ending at: {mover:?}");
     Ok(mover.password())
@@ -100,24 +101,27 @@ impl PositionWarper for MapWrapper {
     }
 
     fn update(&self, mover: PathPosition) -> PathPosition {
-        PathPosition { orientation: mover.orientation, position: Pt::new(match mover.orientation {
-            ManhattanDir::N => [
-                mover.position[0],
-                *self.col2rows[mover.position[0] as usize].end(),
-            ],
-            ManhattanDir::E => [
-                *self.row2cols[mover.position[1] as usize].start(),
-                mover.position[1],
-            ],
-            ManhattanDir::S => [
-                mover.position[0],
-                *self.col2rows[mover.position[0] as usize].start(),
-            ],
-            ManhattanDir::W => [
-                *self.row2cols[mover.position[1] as usize].end(),
-                mover.position[1],
-            ],
-        })}
+        PathPosition {
+            orientation: mover.orientation,
+            position: Pt::new(match mover.orientation {
+                ManhattanDir::N => [
+                    mover.position[0],
+                    *self.col2rows[mover.position[0] as usize].end(),
+                ],
+                ManhattanDir::E => [
+                    *self.row2cols[mover.position[1] as usize].start(),
+                    mover.position[1],
+                ],
+                ManhattanDir::S => [
+                    mover.position[0],
+                    *self.col2rows[mover.position[0] as usize].start(),
+                ],
+                ManhattanDir::W => [
+                    *self.row2cols[mover.position[1] as usize].end(),
+                    mover.position[1],
+                ],
+            }),
+        }
     }
 
     fn row2cols(&self) -> &Vec<RangeInclusive<isize>> {
@@ -180,8 +184,14 @@ impl PositionWarper for CubeWrapper {
         let end_face = self.cube[i_end_face].clone();
         let end2start = end_face.dir_to(i_start_face).unwrap();
         let new_orientation = end2start.inverse();
-        let new_pt = end_face.receiving_position(end2start, start_face.left_departure_offset(mover));
-        PathPosition { position: new_pt, orientation: new_orientation }
+        let left_departure = start_face.left_departure_offset(mover);
+        let new_pt =
+            end_face.receiving_position(end2start, left_departure);
+        println!("{} -> {} ({left_departure}) ({} -> {new_pt})", i_start_face + 1, i_end_face + 1, mover.position);
+        PathPosition {
+            position: new_pt,
+            orientation: new_orientation,
+        }
     }
 }
 
@@ -306,15 +316,54 @@ impl CubeFace {
         }
     }
 
-    pub fn receiving_position(&self, receiving_direction: ManhattanDir, left_departure: isize) -> Pt {
-        Pt::new(match receiving_direction {
+    pub fn receiving_position(
+        &self,
+        receiving_direction: ManhattanDir,
+        left_departure: isize,
+    ) -> Pt {
+        let p =Pt::new(match receiving_direction {
             ManhattanDir::N => [self.xs.end() - left_departure, *self.ys.start()],
             ManhattanDir::E => [*self.xs.end(), self.ys.end() - left_departure],
-            ManhattanDir::S => [self.xs.end() - left_departure, *self.ys.end()],
-            ManhattanDir::W => [*self.xs.start(), self.ys.end() - left_departure],
-        })
+            ManhattanDir::S => [self.xs.start() + left_departure, *self.ys.end()],
+            ManhattanDir::W => [*self.xs.start(), self.ys.start() + left_departure],
+        });
+        println!("receiving_position: {receiving_direction:?} {left_departure} xs:{:?} ys:{:?} {p}", self.xs, self.ys);
+        p
     }
 }
+
+/* original 
+Starting at: PathPosition { position: Point { coords: [8, 0] }, orientation: E }
+Forward(10) -> (10,0) (E)
+Right -> (10,0) (S)
+Forward(5) -> (10,5) (S)
+Left -> (10,5) (E)
+Forward(5) -> (14,10) (S)
+Right -> (14,10) (W)
+Forward(10) -> (10,10) (W)
+Left -> (10,10) (S)
+Forward(4) -> (2,7) (N)
+Right -> (2,7) (E)
+Forward(5) -> (7,7) (E)
+Left -> (7,7) (N)
+Forward(5) -> (7,7) (N)
+
+modified
+Starting at: PathPosition { position: Point { coords: [8, 0] }, orientation: E }
+Forward(10) -> (10,0) (E)
+Right -> (10,0) (S)
+Forward(5) -> (10,5) (S)
+Left -> (10,5) (E)
+Forward(5) -> (14,10) (S)
+Right -> (14,10) (W)
+Forward(10) -> (10,10) (W)
+Left -> (10,10) (S)
+Forward(4) -> (1,5) (N)
+Right -> (1,5) (E)
+Forward(5) -> (6,5) (E)
+Left -> (6,5) (N)
+Forward(5) -> (8,1) (E)
+*/
 
 impl Index<ManhattanDir> for CubeFace {
     type Output = Option<usize>;
@@ -523,15 +572,12 @@ impl FromStr for PathMove {
 
 impl Display for PathMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Left => "L".to_owned(),
-                Self::Right => "R".to_owned(),
-                Self::Forward(n) => format!("{n}"),
-            }
-        )
+        let s = match self {
+            Self::Left => "L".to_owned(),
+            Self::Right => "R".to_owned(),
+            Self::Forward(n) => format!("{n}"),
+        };
+        write!(f, "{s}",)
     }
 }
 
