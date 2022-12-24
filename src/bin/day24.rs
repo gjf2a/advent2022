@@ -7,15 +7,26 @@ type Pt = Point<isize,2>;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
+        test(filename, 5)?;
         println!("Part 1: {}", part1(filename)?);
         println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
 
+fn test(filename: &str, iterations: usize) -> anyhow::Result<()> {
+    let mut map = BlizzardMap::from_file(filename)?;
+    println!("{map}");
+    for _ in 0..iterations {
+        println!();
+        map = map.next_step();
+        println!("{map}");
+    }
+    Ok(())
+}
+
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let map = BlizzardMap::from_file(filename)?;
-    println!("{map}");
     Ok(0)
 }
 
@@ -26,6 +37,15 @@ fn part2(filename: &str) -> anyhow::Result<usize> {
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug)]
 enum BlizzardCell {
     Wall, Wind(Wind)
+}
+
+impl BlizzardCell {
+    fn add_wind(&mut self, wind_dir: ManhattanDir) {
+        match self {
+            Self::Wall => {panic!("Illegal operation")}
+            Self::Wind(w) => {w.add_wind(wind_dir);}
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default)]
@@ -65,7 +85,11 @@ impl Wind {
     }
 
     fn winds(&self) -> Vec<ManhattanDir> {
-        all::<ManhattanDir>().enumerate().filter(|(i, _)| self.has_wind[*i]).map(|(_,d)| d).collect()
+        all::<ManhattanDir>().filter(|d| self.has_wind[*d as usize]).collect()
+    }
+
+    fn add_wind(&mut self, wind_dir: ManhattanDir) {
+        self.has_wind[wind_dir as usize] = true;
     }
 }
 
@@ -92,7 +116,7 @@ impl From<char> for BlizzardCell {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct BlizzardMap {
     wind_map: BTreeMap<Pt,BlizzardCell>,
     width: isize,
@@ -112,6 +136,38 @@ impl BlizzardMap {
             height += 1;
         }
         Ok(Self {wind_map, width, height})
+    }
+
+    fn next_step(&self) -> Self {
+        let mut next = Self { width: self.width, height: self.height, wind_map: self.wind_map.iter().map(|(p,c)| (*p, match c {BlizzardCell::Wall => *c, BlizzardCell::Wind(_) => BlizzardCell::Wind(Wind::default())})).collect()};
+        for (p, cell) in self.wind_map.iter() {
+            if let BlizzardCell::Wind(w) = cell {
+                for wind_dir in w.winds() {
+                    let next_p = self.wind_next(wind_dir, *p);
+                    next.wind_map.get_mut(&next_p).unwrap().add_wind(wind_dir);
+                }
+            }
+        }
+        next
+    }
+
+    fn wind_next(&self, wind_dir: ManhattanDir, wind_pos: Pt) -> Pt {
+        let mut updated = wind_pos.manhattan_moved(wind_dir);
+        let max_x = self.width - 2;
+        let max_y = self.height - 2; 
+        if updated[0] == 0 {
+            updated[0] = max_x;
+        }
+        if updated[1] == 0 {
+            updated[1] = max_y;
+        }
+        if updated[0] > max_x {
+            updated[0] = 1;
+        }
+        if updated[1] > max_y {
+            updated[1] = 1;
+        }
+        updated
     }
 }
 
