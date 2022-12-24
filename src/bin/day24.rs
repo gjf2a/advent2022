@@ -1,13 +1,17 @@
-use std::{collections::BTreeMap, fmt::Display, cmp::max};
+use std::{
+    cmp::max,
+    collections::{BTreeMap, BTreeSet},
+    fmt::Display,
+};
 
 use advent_code_lib::{all_lines, simpler_main, ManhattanDir, Point};
 use enum_iterator::all;
 
-type Pt = Point<isize,2>;
+type Pt = Point<isize, 2>;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        test(filename, 5)?;
+        //test(filename, 5)?;
         println!("Part 1: {}", part1(filename)?);
         println!("Part 2: {}", part2(filename)?);
         Ok(())
@@ -27,30 +31,81 @@ fn test(filename: &str, iterations: usize) -> anyhow::Result<()> {
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
     let map = BlizzardMap::from_file(filename)?;
-    Ok(0)
+    Ok(Reachability::minutes2exit(map))
 }
 
 fn part2(filename: &str) -> anyhow::Result<usize> {
     Ok(0)
 }
 
+struct Reachability {
+    minute2reachable: Vec<BTreeSet<Pt>>,
+}
+
+impl Reachability {
+    fn new(map: &BlizzardMap) -> Self {
+        let mut minute_zero = BTreeSet::new();
+        minute_zero.insert(map.entrance());
+        Self {
+            minute2reachable: vec![minute_zero],
+        }
+    }
+
+    fn current(&self) -> &BTreeSet<Pt> {
+        self.minute2reachable.last().unwrap()
+    }
+
+    fn elapsed_minutes(&self) -> usize {
+        self.minute2reachable.len() - 1
+    }
+
+    fn iterate(&mut self, map: &mut BlizzardMap) {
+        *map = map.next_step();
+        let mut reachable = BTreeSet::new();
+        for prev in self.current().iter() {
+            if map.can_enter(*prev) {
+                reachable.insert(*prev);
+            }
+            for neighbor in prev.manhattan_neighbors() {
+                if map.can_enter(neighbor) {
+                    reachable.insert(neighbor);
+                }
+            }
+        }
+        self.minute2reachable.push(reachable);
+    }
+
+    fn minutes2exit(mut map: BlizzardMap) -> usize {
+        let mut reachability = Self::new(&map);
+        while !reachability.current().contains(&map.exit()) {
+            reachability.iterate(&mut map);
+        }
+        reachability.elapsed_minutes()
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug)]
 enum BlizzardCell {
-    Wall, Wind(Wind)
+    Wall,
+    Wind(Wind),
 }
 
 impl BlizzardCell {
     fn add_wind(&mut self, wind_dir: ManhattanDir) {
         match self {
-            Self::Wall => {panic!("Illegal operation")}
-            Self::Wind(w) => {w.add_wind(wind_dir);}
+            Self::Wall => {
+                panic!("Illegal operation")
+            }
+            Self::Wind(w) => {
+                w.add_wind(wind_dir);
+            }
         }
     }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default)]
 struct Wind {
-    has_wind: [bool; 4]
+    has_wind: [bool; 4],
 }
 
 impl Wind {
@@ -72,8 +127,8 @@ impl Display for Wind {
                 ManhattanDir::E => ">",
                 ManhattanDir::S => "v",
                 ManhattanDir::W => "<",
-            }
-            _ => count_str.as_str()
+            },
+            _ => count_str.as_str(),
         };
         write!(f, "{s}")
     }
@@ -85,7 +140,9 @@ impl Wind {
     }
 
     fn winds(&self) -> Vec<ManhattanDir> {
-        all::<ManhattanDir>().filter(|d| self.has_wind[*d as usize]).collect()
+        all::<ManhattanDir>()
+            .filter(|d| self.has_wind[*d as usize])
+            .collect()
     }
 
     fn add_wind(&mut self, wind_dir: ManhattanDir) {
@@ -97,7 +154,7 @@ impl Display for BlizzardCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BlizzardCell::Wall => write!(f, "#"),
-            BlizzardCell::Wind(w) => write!(f, "{}", *w)
+            BlizzardCell::Wind(w) => write!(f, "{}", *w),
         }
     }
 }
@@ -111,14 +168,14 @@ impl From<char> for BlizzardCell {
             '>' => Self::Wind(Wind::dir(ManhattanDir::E)),
             'v' => Self::Wind(Wind::dir(ManhattanDir::S)),
             '<' => Self::Wind(Wind::dir(ManhattanDir::W)),
-            _ => panic!("Illegal character"), 
+            _ => panic!("Illegal character"),
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct BlizzardMap {
-    wind_map: BTreeMap<Pt,BlizzardCell>,
+    wind_map: BTreeMap<Pt, BlizzardCell>,
     width: isize,
     height: isize,
 }
@@ -135,11 +192,46 @@ impl BlizzardMap {
             }
             height += 1;
         }
-        Ok(Self {wind_map, width, height})
+        Ok(Self {
+            wind_map,
+            width,
+            height,
+        })
+    }
+
+    fn can_enter(&self, p: Pt) -> bool {
+        self.wind_map.get(&p).map_or(false, |c| match c {
+            BlizzardCell::Wall => false,
+            BlizzardCell::Wind(w) => !w.is_windy(),
+        })
+    }
+
+    fn entrance(&self) -> Pt {
+        Pt::new([1, 0])
+    }
+
+    fn exit(&self) -> Pt {
+        Pt::new([self.width - 2, self.height - 1])
     }
 
     fn next_step(&self) -> Self {
-        let mut next = Self { width: self.width, height: self.height, wind_map: self.wind_map.iter().map(|(p,c)| (*p, match c {BlizzardCell::Wall => *c, BlizzardCell::Wind(_) => BlizzardCell::Wind(Wind::default())})).collect()};
+        let mut next = Self {
+            width: self.width,
+            height: self.height,
+            wind_map: self
+                .wind_map
+                .iter()
+                .map(|(p, c)| {
+                    (
+                        *p,
+                        match c {
+                            BlizzardCell::Wall => *c,
+                            BlizzardCell::Wind(_) => BlizzardCell::Wind(Wind::default()),
+                        },
+                    )
+                })
+                .collect(),
+        };
         for (p, cell) in self.wind_map.iter() {
             if let BlizzardCell::Wind(w) = cell {
                 for wind_dir in w.winds() {
@@ -154,7 +246,7 @@ impl BlizzardMap {
     fn wind_next(&self, wind_dir: ManhattanDir, wind_pos: Pt) -> Pt {
         let mut updated = wind_pos.manhattan_moved(wind_dir);
         let max_x = self.width - 2;
-        let max_y = self.height - 2; 
+        let max_y = self.height - 2;
         if updated[0] == 0 {
             updated[0] = max_x;
         }
