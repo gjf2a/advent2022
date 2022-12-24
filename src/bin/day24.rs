@@ -30,12 +30,20 @@ fn test(filename: &str, iterations: usize) -> anyhow::Result<()> {
 }
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
-    let map = BlizzardMap::from_file(filename)?;
-    Ok(Reachability::minutes2exit(map))
+    let mut map = BlizzardMap::from_file(filename)?;
+    let start = map.entrance();
+    let exit = map.exit();
+    Ok(Reachability::minutes2exit(&mut map, start, exit))
 }
 
 fn part2(filename: &str) -> anyhow::Result<usize> {
-    Ok(0)
+    let mut map = BlizzardMap::from_file(filename)?;
+    let start = map.entrance();
+    let exit = map.exit();
+    let mut total = Reachability::minutes2exit(&mut map, start, exit);
+    total += Reachability::minutes2exit(&mut map, exit, start);
+    total += Reachability::minutes2exit(&mut map, start, exit);
+    Ok(total)
 }
 
 struct Reachability {
@@ -43,9 +51,9 @@ struct Reachability {
 }
 
 impl Reachability {
-    fn new(map: &BlizzardMap) -> Self {
+    fn new(start: Pt) -> Self {
         let mut minute_zero = BTreeSet::new();
-        minute_zero.insert(map.entrance());
+        minute_zero.insert(start);
         Self {
             minute2reachable: vec![minute_zero],
         }
@@ -75,10 +83,10 @@ impl Reachability {
         self.minute2reachable.push(reachable);
     }
 
-    fn minutes2exit(mut map: BlizzardMap) -> usize {
-        let mut reachability = Self::new(&map);
-        while !reachability.current().contains(&map.exit()) {
-            reachability.iterate(&mut map);
+    fn minutes2exit(map: &mut BlizzardMap, start: Pt, exit: Pt) -> usize {
+        let mut reachability = Self::new(start);
+        while !reachability.current().contains(&exit) {
+            reachability.iterate(map);
         }
         reachability.elapsed_minutes()
     }
