@@ -11,22 +11,10 @@ type Pt = Point<isize, 2>;
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
-        //test(filename, 5)?;
         println!("Part 1: {}", part1(filename)?);
         println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
-}
-
-fn test(filename: &str, iterations: usize) -> anyhow::Result<()> {
-    let mut map = BlizzardMap::from_file(filename)?;
-    println!("{map}");
-    for _ in 0..iterations {
-        println!();
-        map = map.next_step();
-        println!("{map}");
-    }
-    Ok(())
 }
 
 fn part1(filename: &str) -> anyhow::Result<usize> {
