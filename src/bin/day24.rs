@@ -203,11 +203,19 @@ impl BlizzardMap {
     }
 
     fn entrance(&self) -> Pt {
-        Pt::new([1, 0])
+        self.empty_cell_in(0)
     }
 
     fn exit(&self) -> Pt {
-        Pt::new([self.width - 2, self.height - 1])
+        self.empty_cell_in(self.height - 1)
+    }
+
+    fn empty_cell_in(&self, row: isize) -> Pt {
+        self.wind_map
+            .keys()
+            .find(|p| p[1] == row && self.can_enter(**p))
+            .copied()
+            .unwrap()
     }
 
     fn next_step(&self) -> Self {
