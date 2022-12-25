@@ -1,9 +1,6 @@
 use std::{str::FromStr, fmt::Display};
 
 use advent_code_lib::{simpler_main, all_lines};
-use bare_metal_modulo::OffsetNumC;
-
-
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -16,11 +13,19 @@ fn main() -> anyhow::Result<()> {
 fn part1(filename: &str) -> anyhow::Result<Snafu> {
     let mut result = Snafu(0);
     for line in all_lines(filename)? {
-        result += line.parse().unwrap();
+        print!("line: {line}");
+        let s = line.parse::<Snafu>().unwrap();
+        println!(" {}", s.0);
+        snafu_checker(s);
+        result += s;
     }
     println!("(place, digit): {:?}", ascend_place_digit(result.0));
-    assert_eq!(format!("{result}").parse::<Snafu>().unwrap(), result);
+    snafu_checker(result);
     Ok(result)
+}
+
+fn snafu_checker(snafu: Snafu) {
+    assert_eq!(format!("{snafu}").parse::<Snafu>().unwrap(), snafu);
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
