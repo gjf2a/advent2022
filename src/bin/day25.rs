@@ -19,9 +19,11 @@ fn part1(filename: &str) -> anyhow::Result<Snafu> {
         result += line.parse().unwrap();
     }
     println!("(place, digit): {:?}", ascend_place_digit(result.0));
+    assert_eq!(format!("{result}").parse::<Snafu>().unwrap(), result);
     Ok(result)
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 struct Snafu(isize);
 
 impl std::ops::AddAssign for Snafu {
