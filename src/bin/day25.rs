@@ -1,11 +1,10 @@
-use std::{str::FromStr, fmt::Display};
+use std::{str::FromStr, fmt::Display, collections::VecDeque};
 
 use advent_code_lib::{simpler_main, all_lines};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
         println!("Part 1: {}", part1(filename)?);
-        //println!("Part 2: {}", part2(filename)?);
         Ok(())
     })
 }
@@ -13,13 +12,10 @@ fn main() -> anyhow::Result<()> {
 fn part1(filename: &str) -> anyhow::Result<Snafu> {
     let mut result = Snafu(0);
     for line in all_lines(filename)? {
-        print!("line: {line}");
         let s = line.parse::<Snafu>().unwrap();
-        println!(" {}", s.0);
         snafu_checker(s);
         result += s;
     }
-    println!("(place, digit): {:?}", ascend_place_digit(result.0));
     snafu_checker(result);
     Ok(result)
 }
@@ -29,7 +25,7 @@ fn snafu_checker(snafu: Snafu) {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-struct Snafu(isize);
+struct Snafu(i64);
 
 impl std::ops::AddAssign for Snafu {
     fn add_assign(&mut self, rhs: Self) {
@@ -47,78 +43,78 @@ impl FromStr for Snafu {
             total += match c {
                 '=' => -2,
                 '-' => -1,
-                d => (d as u8 - '0' as u8) as isize,
+                d => (d as u8 - '0' as u8) as i64,
             };
         }
         Ok(Self(total))
     }
 }
 
-fn ascend_place_digit(value: isize) -> (u32,isize) {
-    let mut opt1 = 1;
-    let mut opt2 = 2;
-    let mut place = 0;
-    loop {
-        if opt1 >= value {
-            return (place, 1);
-        } else if opt2 >= value {
-            return (place, 2);
-        }
-        opt1 *= 5;
-        opt2 *= 5;
-        place += 1;
-    }
-}
-
 impl Display for Snafu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (mut place, digit) = ascend_place_digit(self.0);
-        write!(f, "{digit}")?;
-        let mut value = digit * 5_isize.pow(place);
-        while place > 0 {
-            place -= 1;
-            let adjust = 5_isize.pow(place);
-            let mut digit = 0;
-            if value < self.0 {
-                value += adjust;
-                digit += 1;
-                if value < self.0 {
-                    value += adjust;
-                    digit += 1;
-                }
-            } else if value > self.0 {
-                value -= adjust;
-                digit -= 1;
-                if value > self.0 {
-                    value -= adjust;
-                    digit -= 1;
-                }
-            }
-            match digit {
-                -2 => write!(f, "=")?,
-                -1 => write!(f, "-")?,
-                0..=2 => write!(f, "{digit}")?,
-                err => panic!("Erroneous digit: {err}"),    
-            }
+        let mut digits = VecDeque::new();
+        let mut value = self.0;
+        while value > 0 {
+            let digit = value % 5;
+            value /= 5;
+            digits.push_front(if digit < 3 {
+                format!("{digit}")
+            } else {
+                value += 1;
+                (if digit == 3 {"="} else {"-"}).to_owned()
+            });
         }
-        Ok(())
+        let result = digits.iter().cloned().collect::<String>();
+        write!(f, "{result}")
     }
 }
 
 /*
-4890
 
-2 * 3125 = 6250
-"2"
-6250 - 625 = 5625
-5625 - 625 = 5000
-"2="
-5000 - 125 = 4875
-"2=-"
-4875 + 25 = 4900
-"2=-1"
-4900 - 5 = 4895
-4895 - 5 = 4890
-"2=-1="
-"2=-1=0"
+New algorithm:
+
+digit = v % 5
+v = v / 5
+match digit
+0, 1, 2 => output same
+3 => output =; v += 1
+4 => output -; v += 1
+
+4
+digit = 4
+v = 0
+output -; v = 1
+output 1
+1-
+
+44
+digit = 4
+v = 8
+output -; v = 9
+digit = 4
+v = 1
+output -; v = 2
+output 2 
+2--
+
+444
+digit = 4
+v = 88
+output -; v = 89
+digit = 4
+v = 17
+output -; v = 18
+digit = 3
+v = 3
+output =; v = 4
+digit = 4
+v = 0
+output -; v = 1
+digit = 1
+v = 0
+output 1
+1-=--
+
+625 - 125 - 50 - 5 - 1 = 444
+
 */
