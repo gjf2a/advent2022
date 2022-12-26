@@ -12,16 +12,9 @@ fn main() -> anyhow::Result<()> {
 fn part1(filename: &str) -> anyhow::Result<Snafu> {
     let mut result = Snafu(0);
     for line in all_lines(filename)? {
-        let s = line.parse::<Snafu>().unwrap();
-        snafu_checker(s);
-        result += s;
+        result += line.parse::<Snafu>().unwrap();
     }
-    snafu_checker(result);
     Ok(result)
-}
-
-fn snafu_checker(snafu: Snafu) {
-    assert_eq!(format!("{snafu}").parse::<Snafu>().unwrap(), snafu);
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
