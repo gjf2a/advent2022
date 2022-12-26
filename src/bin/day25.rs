@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt::Display, str::FromStr};
+use std::{collections::VecDeque, fmt::Display, iter::Sum, str::FromStr};
 
 use advent_code_lib::{all_lines, simpler_main};
 
@@ -10,19 +10,17 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn part1(filename: &str) -> anyhow::Result<Snafu> {
-    let mut result = Snafu(0);
-    for line in all_lines(filename)? {
-        result += line.parse::<Snafu>().unwrap();
-    }
-    Ok(result)
+    Ok(all_lines(filename)?
+        .map(|line| line.parse::<Snafu>().unwrap())
+        .sum())
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 struct Snafu(i64);
 
-impl std::ops::AddAssign for Snafu {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+impl Sum<Snafu> for Snafu {
+    fn sum<I: Iterator<Item = Snafu>>(iter: I) -> Self {
+        Snafu(iter.map(|s| s.0).sum())
     }
 }
 
