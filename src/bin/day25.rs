@@ -1,6 +1,6 @@
-use std::{str::FromStr, fmt::Display, collections::VecDeque};
+use std::{collections::VecDeque, fmt::Display, str::FromStr};
 
-use advent_code_lib::{simpler_main, all_lines};
+use advent_code_lib::{all_lines, simpler_main};
 
 fn main() -> anyhow::Result<()> {
     simpler_main(|filename| {
@@ -61,60 +61,10 @@ impl Display for Snafu {
                 format!("{digit}")
             } else {
                 value += 1;
-                (if digit == 3 {"="} else {"-"}).to_owned()
+                (if digit == 3 { "=" } else { "-" }).to_owned()
             });
         }
         let result = digits.iter().cloned().collect::<String>();
         write!(f, "{result}")
     }
 }
-
-/*
-
-New algorithm:
-
-digit = v % 5
-v = v / 5
-match digit
-0, 1, 2 => output same
-3 => output =; v += 1
-4 => output -; v += 1
-
-4
-digit = 4
-v = 0
-output -; v = 1
-output 1
-1-
-
-44
-digit = 4
-v = 8
-output -; v = 9
-digit = 4
-v = 1
-output -; v = 2
-output 2 
-2--
-
-444
-digit = 4
-v = 88
-output -; v = 89
-digit = 4
-v = 17
-output -; v = 18
-digit = 3
-v = 3
-output =; v = 4
-digit = 4
-v = 0
-output -; v = 1
-digit = 1
-v = 0
-output 1
-1-=--
-
-625 - 125 - 50 - 5 - 1 = 444
-
-*/
