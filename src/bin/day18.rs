@@ -48,6 +48,9 @@ impl Droplet {
 
     pub fn trapped(&self, cube: &Cubito) -> bool {
         let (min_p, max_p) = Cubito::min_max_points(self.cubes.iter().copied()).unwrap();
+        let node_cost = |n: &Cubito| {
+            cube.manhattan_distance(n)          
+        };
         let at_goal = |n: &Cubito| {
             n.values()
                 .enumerate()
@@ -66,8 +69,8 @@ impl Droplet {
                 .filter(|n| !self.cubes.contains(n))
                 .collect()
         };
-        let result = heuristic_search(*cube, at_goal, heuristic, get_successors);
-        !at_goal(&result.path().unwrap().back().copied().unwrap())
+        let result = heuristic_search(*cube, node_cost, at_goal, heuristic, get_successors);
+        !at_goal(&result.node_at_goal().unwrap())
     }
 }
 
